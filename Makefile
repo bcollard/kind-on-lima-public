@@ -50,7 +50,7 @@ setup-host-network: ## prepare the Host (macbook) for Lima networking
 
 
 setup-lima-network: ## prepare the Lima VM for networking
-	lima -- sh ./lima/35-lima-to-kind-routing.sh
+	./bin/lima -- sh ./lima/35-lima-to-kind-routing.sh
 
 test: ## delpoy nginx and curl it from the host
 	kubectl run nginx --image nginx; \
