@@ -1,0 +1,61 @@
+= Run multiple KinD clusters on Lima
+
+Original blog post: https://baptistout.net/posts/kubernetes-clusters-on-macos-with-loadbalancer-without-docker-desktop/
+
+== Prerequisites
+Download and install the following tools, in addition to what is explained in the blog:
+- kind
+- direnv
+
+== Local setup
+
+Most of the scripts are available with `Make` targets.
+
+List all the targets with
+```bash
+make
+```
+
+Initialize the env vars for this directory:
+
+```bash
+direnv allow
+```
+
+=== Lima CLI
+
+Install the Lima CLI with:
+
+```bash
+make dl-install-lima 0.11.1
+```
+
+=== Create/Start/Stop/Delete the Lima VM
+```bash
+make create
+make stop
+make start
+make delete
+```
+
+=== Spin up a new KinD cluster
+```bash
+#make kind-create <id> <name>
+make kind-create 1 1-istio
+make kind-create 2 2-gloo-edge
+make kind-create 3 3-gloo-mesh-mgmt
+make kind-create 4 4-gloo-mesh-cluster1
+make kind-create 5 5-gloo-mesh-cluster2
+```
+
+=== Configure the network E2E
+```bash
+make setup-host-network
+make setup-lima-network
+```
+
+=== Test connectivity E2E
+```bash
+make test
+make clean-test
+```

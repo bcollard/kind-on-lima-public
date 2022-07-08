@@ -1,0 +1,102 @@
+# Example to use Docker instead of containerd & nerdctl
+# $ limactl start ./docker.yaml
+# $ limactl shell docker docker run -it -v $HOME:$HOME --rm alpine
+
+# To run `docker` on the host (assumes docker-cli is installed):
+# $ export DOCKER_HOST=unix://$HOME/docker.sock
+# $ docker ...
+
+# This example requires Lima v0.7.3 or later
+images:
+  # Hint: run `limactl prune` to invalidate the "current" cache
+  - location: "https://cloud-images.ubuntu.com/impish/current/impish-server-cloudimg-amd64.img"
+    arch: "x86_64"
+  - location: "https://cloud-images.ubuntu.com/impish/current/impish-server-cloudimg-arm64.img"
+    arch: "aarch64"
+
+# CPUs: if you see performance issues, try limiting cpus to 1.
+# Default: 4
+cpus: 8
+
+# Memory size
+# Default: "4GiB"
+memory: "24GiB"
+
+# Disk size
+# Default: "100GiB"
+disk: "100GiB"
+
+mounts:
+  - location: "~"
+    writable: false
+  - location: "/tmp/lima"
+    writable: true
+  - location: "/opt/lima"
+    writable: true
+
+ssh:
+  localPort: 60006
+  # Load ~/.ssh/*.pub in addition to $LIMA_HOME/_config/user.pub , for allowing DOCKER_HOST=ssh:// .
+  # This option is enabled by default.
+  # If you have an insecure key under ~/.ssh, do not use this option.
+  loadDotSSHPubKeys: true
+# containerd is managed by Docker, not by Lima, so the values are set to false here.
+containerd:
+  system: false
+  user: false
+
+provision:
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      # command -v docker >/dev/null 2>&1 && exit 0
+      export DEBIAN_FRONTEND=noninteractive
+      # https://kind.sigs.k8s.io/docs/user/known-issues/#pod-errors-due-to-too-many-open-files
+      sysctl fs.inotify.max_user_watches=524288
+      sysctl fs.inotify.max_user_instances=512
+      curl -fsSL https://get.docker.com | sh
+      apt-get install -y net-tools traceroute arping jq
+      groupadd docker || true
+      usermod -aG docker bapt
+probes:
+  - script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      if ! timeout 30s bash -c "until command -v docker >/dev/null 2>&1; do sleep 3; done"; then
+        echo >&2 "docker is not installed yet"
+        exit 1
+      fi
+    hint: See "/var/log/cloud-init-output.log". in the guest
+
+portForwards:
+  - guestSocket: "/run/docker.sock"
+    hostSocket: "{{.Home}}/docker.sock"
+
+networks:
+  # Lima can manage daemons for networks defined in $LIMA_HOME/_config/networks.yaml
+  # automatically. Both vde_switch and vde_vmnet binaries must be installed into
+  # secure locations only alterable by the "root" user.
+  # https://github.com/lima-vm/lima/blob/dcda59c5fde06a5231110059fe5628a1ad624fe9/docs/network.md
+  - lima: shared
+    # # MAC address of the instance; lima will pick one based on the instance name,
+    # # so DHCP assigned ip addresses should remain constant over instance restarts.
+    # macAddress: ""
+    # # Interface name, defaults to "lima0", "lima1", etc.
+    # interface: ""
+  
+  # Lima can also connect to "unmanaged" vde networks addressed by "vnl". This
+  # means that the daemons will not be controlled by Lima, but must be started
+  # before the instance.  The interface type (host, shared, or bridged) is
+  # configured in vde_vmnet and not in lima.
+  # vnl (virtual network locator) points to the vde_switch socket directory,
+  # optionally with vde:// prefix
+  # - vnl: "vde:///var/run/vde.ctl"
+    # # VDE Switch port number (not TCP/UDP port number). Set to 65535 for PTP mode.
+    # # Default: 0
+    # switchPort: 65535
+    # # MAC address of the instance; lima will pick one based on the instance name,
+    # # so DHCP assigned ip addresses should remain constant over instance restarts.
+    # macAddress: ""
+    # # Interface name, defaults to "lima0", "lima1", etc.
+    # interface: "lima1"
