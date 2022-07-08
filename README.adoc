@@ -4,6 +4,7 @@ Original blog post: https://baptistout.net/posts/kubernetes-clusters-on-macos-wi
 
 == Prerequisites
 Download and install the following tools, in addition to what is explained in the blog:
+
 - kind
 - direnv
 
