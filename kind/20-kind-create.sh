@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-export KIND_ON_LIMA_DIR=${LIMA_WORKDIR}
-
-# source $KIND_ON_LIMA_DIR/lib.sh
-# create-kind-lima-cluster 1 kind-sandbox
 
 NUM=$1
 NAME=$2
@@ -24,7 +20,7 @@ if [ -z "$4" ]; then
   REGION=europe-west1-b
 fi
 TWO_DIGITS=$(printf "%02d\n" ${NUM})
-KIND_HOME_DIR=$HOME/.kube/kind
+KIND_HOME_DIR=${HOME}/.kube/kind
 CLUSTER_CONFIG_FILE=${KIND_HOME_DIR}/$NAME.yaml
 METALLB_CONFIG_FILE=${KIND_HOME_DIR}/$NAME-metallb.yaml
 
@@ -33,8 +29,9 @@ rm -v ${CLUSTER_CONFIG_FILE}
 rm -v ${METALLB_CONFIG_FILE}
 mkdir -p ${KIND_HOME_DIR}
 
-# DOCKER IMAGES CACHES (registry:v2)
-mkdir -p $HOME/.kube/kind
+# DOCKER IMAGE CACHES (registry:v2)
+docker load < ${REGISTRIES_ROOT_DIR}/registry-image.tar
+mkdir -p ${HOME}/.kube/kind
 DOCKERIO_CACHE_NAME='registry-dockerio'
 DOCKERIO_CACHE_PORT='5030'
 DOCKERIO_CACHE_RUNNING="$(docker inspect -f '{{.State.Running}}' "${DOCKERIO_CACHE_NAME}" 2>/dev/null || true)"
@@ -164,7 +161,10 @@ containerdConfigPatches:
     insecure_skip_verify = true
 EOF
 
-kind create cluster --config=${CLUSTER_CONFIG_FILE}
+# docker pull kindest/node:v1.24.0
+# docker save kindest/node:v1.24.0 > /opt/lima/kind-1.24.0-image.tar
+docker load < ${REGISTRIES_ROOT_DIR}/kind-1.24.0-image.tar
+kind create cluster --config=${CLUSTER_CONFIG_FILE} --wait 1m --image kindest/node:v1.24.0
 
 # NETWORK SETUP FOR DOCKER REGISTRIES
 docker network connect kind ${DOCKERIO_CACHE_NAME}
@@ -172,13 +172,12 @@ docker network connect kind ${QUAYIO_CACHE_NAME}
 docker network connect kind ${GCRIO_CACHE_NAME}
 
 # METALLB
-kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.11/manifests/namespace.yaml
+kubectl apply -f ${LIMA_WORKDIR}/metallb/namespace.yaml
 kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)" 
-kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.11/manifests/metallb.yaml
-sleep 5
+kubectl apply -f ${LIMA_WORKDIR}/metallb/metallb.yaml
 kubectl -n metallb-system wait po --for condition=Ready --timeout -1s --all
 
-SUBNET_PREFIX=$(docker network inspect kind | jq -r '.[0].IPAM.Config[0].Subnet' | awk -F. '{print $1"."$2}')
+SUBNET_PREFIX=`docker network inspect kind | jq -r '.[0].IPAM.Config[0].Subnet' | awk -F. '{print $1"."$2}'`
 
 cat << EOF > ${METALLB_CONFIG_FILE}
 apiVersion: v1
