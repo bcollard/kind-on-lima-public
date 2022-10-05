@@ -161,10 +161,15 @@ containerdConfigPatches:
     insecure_skip_verify = true
 EOF
 
-# docker pull kindest/node:v1.24.0
-# docker save kindest/node:v1.24.0 > /opt/lima/kind-1.24.0-image.tar
-docker load < ${REGISTRIES_ROOT_DIR}/kind-1.24.0-image.tar
-kind create cluster --config=${CLUSTER_CONFIG_FILE} --wait 1m --image kindest/node:v1.24.0
+# Gloo Fed cluster registration fails with k8s 1.24 - https://github.com/solo-io/gloo/issues/7071
+let imgexists=$(docker images kindest/node:${KIND_NODE_VERSION} --format "{{.ID}} - {{.Repository}}:{{.Tag}}" | wc -l)
+if [[ "$imgexists" == "0" ]] ; then
+  docker pull kindest/node:${KIND_NODE_VERSION}
+  docker save kindest/node:${KIND_NODE_VERSION} > /opt/lima/kind-${KIND_NODE_VERSION}-image.tar
+  docker load < ${REGISTRIES_ROOT_DIR}/kind-${KIND_NODE_VERSION}-image.tar
+fi
+kind create cluster --config=${CLUSTER_CONFIG_FILE} --image kindest/node:${KIND_NODE_VERSION} --retain
+#kind export logs --name ${NAME}; kind delete cluster
 
 # NETWORK SETUP FOR DOCKER REGISTRIES
 docker network connect kind ${DOCKERIO_CACHE_NAME}
@@ -172,6 +177,9 @@ docker network connect kind ${QUAYIO_CACHE_NAME}
 docker network connect kind ${GCRIO_CACHE_NAME}
 
 # METALLB
+# uncommented the two lines below on Oct-5 because the image were long to pull when roaming. Works?
+docker load < ${REGISTRIES_ROOT_DIR}/quay.io-metallb-controller-v0.11.tar
+docker load < ${REGISTRIES_ROOT_DIR}/quay.io-metallb-speaker-v0.11.tar
 kubectl apply -f ${LIMA_WORKDIR}/metallb/namespace.yaml
 kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)" 
 kubectl apply -f ${LIMA_WORKDIR}/metallb/metallb.yaml

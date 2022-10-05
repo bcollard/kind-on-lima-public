@@ -42,6 +42,8 @@ kind-delete: ## delete a kind cluster. Usage: make kind-delete <name>
 list-kind-clusters: ## list KinD clusters
 	@kind get clusters
 
+kind-list: list-kind-clusters
+
 %:
     @:
 
@@ -52,12 +54,12 @@ setup-host-network: ## prepare the Host (macbook) for Lima networking
 setup-lima-network: ## prepare the Lima VM for networking
 	./bin/lima -- sh ./lima/35-lima-to-kind-routing.sh
 
-test: ## delpoy nginx and curl it from the host
+test: ## deploy nginx and curl it from the host
 	kubectl run nginx --image nginx; \
 	kubectl expose po/nginx --port 80 --type LoadBalancer; \
 	kubectl get svc; \
-	sleep 4; \
-	curl -I -v $$(kubectl get svc nginx -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+	kubectl wait po --for condition=Ready --timeout 15s nginx; \
+	curl --max-time 6 --connect-timeout 5 -I -v $$(kubectl get svc nginx -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
 clean-test: ## clean the resources created by the test target
 	kubectl delete svc nginx; \
