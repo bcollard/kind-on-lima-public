@@ -29,8 +29,13 @@ rm -v ${CLUSTER_CONFIG_FILE}
 rm -v ${METALLB_CONFIG_FILE}
 mkdir -p ${KIND_HOME_DIR}
 
-# DOCKER IMAGE CACHES (registry:v2)
-docker load < ${REGISTRIES_ROOT_DIR}/registry-image.tar
+# DOCKER IMAGE CACHES (registry:2)
+registry_img_loaded=$(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep registry:2 | wc -l)
+if [ ${registry_img_loaded} -ne 1 ]; then
+  echo "Loading the registry:2 image into the VM..."
+  docker load < ${REGISTRIES_ROOT_DIR}/registry-image.tar
+fi
+
 mkdir -p ${HOME}/.kube/kind
 DOCKERIO_CACHE_NAME='registry-dockerio'
 DOCKERIO_CACHE_PORT='5030'
@@ -41,8 +46,23 @@ QUAYIO_CACHE_RUNNING="$(docker inspect -f '{{.State.Running}}' "${QUAYIO_CACHE_N
 GCRIO_CACHE_NAME='registry-gcrio'
 GCRIO_CACHE_PORT='5020'
 GCRIO_CACHE_RUNNING="$(docker inspect -f '{{.State.Running}}' "${GCRIO_CACHE_NAME}" 2>/dev/null || true)"
+
+# clean stopped containers
+if [ "${DOCKERIO_CACHE_RUNNING}" = "false" ]; then
+  echo "Removing stopped container ${DOCKERIO_CACHE_NAME}"
+  docker rm -f "${DOCKERIO_CACHE_NAME}" 2>/dev/null || true
+fi
+if [ "${QUAYIO_CACHE_RUNNING}" = "false" ]; then
+  echo "Removing stopped container ${QUAYIO_CACHE_NAME}"
+  docker rm -f "${QUAYIO_CACHE_NAME}" 2>/dev/null || true
+fi
+if [ "${GCRIO_CACHE_RUNNING}" = "false" ]; then
+  echo "Removing stopped container ${GCRIO_CACHE_NAME}"
+  docker rm -f "${GCRIO_CACHE_NAME}" 2>/dev/null || true
+fi
+
 # docker.io mirror
-if [[ -z "${DOCKERIO_CACHE_RUNNING}" ]] ; then
+if [[ -z "${DOCKERIO_CACHE_RUNNING}" || "${DOCKERIO_CACHE_RUNNING}" = "false" ]] ; then
   cat > ${KIND_HOME_DIR}/dockerio-cache-config.yml <<EOF
 version: 0.1
 proxy:
@@ -65,13 +85,14 @@ health:
     interval: 10s
     threshold: 3
 EOF
+  echo "Starting docker.io mirror"
   docker run \
     -d --restart=always -v ${KIND_HOME_DIR}/dockerio-cache-config.yml:/etc/docker/registry/config.yml -p ${DOCKERIO_CACHE_PORT}:${DOCKERIO_CACHE_PORT} \
     -v ${DOCKERIO_CACHE_DIR}:/var/lib/registry --name "${DOCKERIO_CACHE_NAME}" \
     registry:2
 fi
 # quay.io mirror
-if [[ -z "${QUAYIO_CACHE_RUNNING}" ]] ; then
+if [[ -z "${QUAYIO_CACHE_RUNNING}" || "${QUAYIO_CACHE_RUNNING}" = "false" ]] ; then
   cat > ${KIND_HOME_DIR}/quayio-cache-config.yml <<EOF
 version: 0.1
 proxy:
@@ -94,13 +115,14 @@ health:
     interval: 10s
     threshold: 3
 EOF
+  echo "Starting quay.io mirror"
   docker run \
     -d --restart=always -v ${KIND_HOME_DIR}/quayio-cache-config.yml:/etc/docker/registry/config.yml -p ${QUAYIO_CACHE_PORT}:${QUAYIO_CACHE_PORT} \
     -v ${QUAYIO_CACHE_DIR}:/var/lib/registry --name "${QUAYIO_CACHE_NAME}" \
     registry:2 
 fi
 # gcr.io mirror
-if [[ -z "${GCRIO_CACHE_RUNNING}" ]] ; then
+if [[ -z "${GCRIO_CACHE_RUNNING}" || "${GCRIO_CACHE_RUNNING}" = "false" ]] ; then
   cat > ${KIND_HOME_DIR}/gcrio-cache-config.yml <<EOF
 version: 0.1
 proxy:
@@ -123,6 +145,7 @@ health:
     interval: 10s
     threshold: 3
 EOF
+  echo "Starting gcr.io mirror"
   docker run \
     -d --restart=always -v ${KIND_HOME_DIR}/gcrio-cache-config.yml:/etc/docker/registry/config.yml -p ${GCRIO_CACHE_PORT}:${GCRIO_CACHE_PORT} \
     -v ${GCRIO_CACHE_DIR}:/var/lib/registry --name "${GCRIO_CACHE_NAME}" \
@@ -135,8 +158,8 @@ kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 name: ${NAME}
 # featureGates:
-#   TokenRequest: true
-#   EphemeralContainers: true
+#   "TokenRequest": true
+#   "EphemeralContainers": true
 nodes:
 - role: control-plane
   extraPortMappings:
@@ -161,25 +184,28 @@ containerdConfigPatches:
     insecure_skip_verify = true
 EOF
 
-# Gloo Fed cluster registration fails with k8s 1.24 - https://github.com/solo-io/gloo/issues/7071
-let imgexists=$(docker images kindest/node:${KIND_NODE_VERSION} --format "{{.ID}} - {{.Repository}}:{{.Tag}}" | wc -l)
-if [[ "$imgexists" == "0" ]] ; then
-  docker pull kindest/node:${KIND_NODE_VERSION}
-  docker save kindest/node:${KIND_NODE_VERSION} > /opt/lima/kind-${KIND_NODE_VERSION}-image.tar
+# KinD image
+kind_img_loaded=$(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep "kindest/node:${KIND_NODE_VERSION}" | wc -l)
+if [ ${kind_img_loaded} -ne 1 ]; then
+  echo "Loading the KinD node image to the VM..."
   docker load < ${REGISTRIES_ROOT_DIR}/kind-${KIND_NODE_VERSION}-image.tar
 fi
+echo "Creating the KinD cluster with name ${NAME}"
 kind create cluster --config=${CLUSTER_CONFIG_FILE} --image kindest/node:${KIND_NODE_VERSION} --retain
 #kind export logs --name ${NAME}; kind delete cluster
 
 # NETWORK SETUP FOR DOCKER REGISTRIES
-docker network connect kind ${DOCKERIO_CACHE_NAME}
-docker network connect kind ${QUAYIO_CACHE_NAME}
-docker network connect kind ${GCRIO_CACHE_NAME}
+echo "Setting up the network for the docker registries"
+docker network connect kind ${DOCKERIO_CACHE_NAME} 2>/dev/null || true
+docker network connect kind ${QUAYIO_CACHE_NAME} 2>/dev/null || true
+docker network connect kind ${GCRIO_CACHE_NAME} 2>/dev/null || true
 
 # METALLB
-# uncommented the two lines below on Oct-5 because the image were long to pull when roaming. Works?
-docker load < ${REGISTRIES_ROOT_DIR}/quay.io-metallb-controller-v0.11.tar
-docker load < ${REGISTRIES_ROOT_DIR}/quay.io-metallb-speaker-v0.11.tar
+echo "Loading the MetalLB images to the KinD node"
+kind load image-archive ${REGISTRIES_ROOT_DIR}/quay.io-metallb-controller-v0.11.0.tar --name ${NAME}
+kind load image-archive ${REGISTRIES_ROOT_DIR}/quay.io-metallb-speaker-v0.11.0.tar --name ${NAME}
+
+echo "Installing MetalLB"
 kubectl apply -f ${LIMA_WORKDIR}/metallb/namespace.yaml
 kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)" 
 kubectl apply -f ${LIMA_WORKDIR}/metallb/metallb.yaml
