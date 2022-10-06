@@ -24,11 +24,11 @@ images:
 
 # CPUs: if you see performance issues, try limiting cpus to 1.
 # Default: 4
-cpus: 10
+cpus: 8
 
 # Memory size
 # Default: "4GiB"
-memory: "30GiB"
+memory: "26GiB"
 
 # Disk size
 # Default: "100GiB"
@@ -58,21 +58,33 @@ provision:
     script: |
       #!/bin/bash
       set -eux -o pipefail
+      # https://kind.sigs.k8s.io/docs/user/known-issues/#pod-errors-due-to-too-many-open-files
       sysctl fs.inotify.max_user_watches=524288
       sysctl fs.inotify.max_user_instances=512
       command -v docker >/dev/null 2>&1 && exit 0
+      if [ ! -e /etc/systemd/system/docker.socket.d/override.conf ]; then
+        mkdir -p /etc/systemd/system/docker.socket.d
+        # Alternatively we could just add the user to the "docker" group, but that requires restarting the user session
+        cat <<-EOF >/etc/systemd/system/docker.socket.d/override.conf
+        [Socket]
+        SocketUser=${LIMA_CIDATA_USER}
+      EOF
+      fi
       export DEBIAN_FRONTEND=noninteractive
-      # https://kind.sigs.k8s.io/docs/user/known-issues/#pod-errors-due-to-too-many-open-files
       curl -fsSL https://get.docker.com | sh
       apt-get install -y net-tools traceroute arping jq
-      groupadd docker || true
-      usermod -aG docker bapt
+      # groupadd docker || true
+      # usermod -aG docker bapt
 probes:
   - script: |
       #!/bin/bash
       set -eux -o pipefail
       if ! timeout 30s bash -c "until command -v docker >/dev/null 2>&1; do sleep 3; done"; then
         echo >&2 "docker is not installed yet"
+        exit 1
+      fi
+      if ! timeout 30s bash -c "until pgrep dockerd; do sleep 3; done"; then
+        echo >&2 "dockerd is not running"
         exit 1
       fi
     hint: See "/var/log/cloud-init-output.log". in the guest

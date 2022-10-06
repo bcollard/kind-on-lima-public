@@ -19,7 +19,9 @@ stop: ## stop the current Lima instance
 	./lima/91-lima-stop.sh
 
 start: ## start the default Lima instance
-	./lima/10-lima-start.sh
+	./lima/10-lima-start.sh; \
+	echo "now run: make setup-host-network"; \
+	echo "then run: make setup-lima-network"
 
 delete: ## delete the default Lima instance
 	./lima/95-lima-delete.sh
@@ -55,11 +57,11 @@ setup-lima-network: ## prepare the Lima VM for networking
 	./bin/lima -- sh ./lima/35-lima-to-kind-routing.sh
 
 test: ## deploy nginx and curl it from the host
-	kubectl run nginx --image nginx; \
+	kubectl run nginx --image nginx:1.22; \
 	kubectl expose po/nginx --port 80 --type LoadBalancer; \
 	kubectl get svc; \
-	kubectl wait po --for condition=Ready --timeout 15s nginx; \
-	curl --max-time 6 --connect-timeout 5 -I -v $$(kubectl get svc nginx -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+	kubectl wait po --for condition=Ready --timeout 20s nginx; \
+	curl --max-time 11 --connect-timeout 10 -I -v $$(kubectl get svc nginx -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
 clean-test: ## clean the resources created by the test target
 	kubectl delete svc nginx; \
