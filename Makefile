@@ -49,12 +49,16 @@ kind-list: list-kind-clusters
 %:
     @:
 
+setup-kind-bridge: ## setup the KinD bridge network
+	@./kind/19-kind-bridge.sh
+
 setup-host-network: ## prepare the Host (macbook) for Lima networking
 	@./macos-setup/25-network-setup.sh
 
-
 setup-lima-network: ## prepare the Lima VM for networking
 	./bin/lima -- sh ./lima/35-lima-to-kind-routing.sh
+
+config-network-end-to-end: setup-kind-bridge setup-host-network setup-lima-network ## configure the network end-to-end
 
 test: ## deploy nginx and curl it from the host
 	kubectl run nginx --image nginx:1.22; \

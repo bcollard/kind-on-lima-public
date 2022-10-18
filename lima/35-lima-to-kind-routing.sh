@@ -27,7 +27,8 @@
 # cat /proc/sys/net/ipv4/ip_forward
 
 # ip forward from Host to KinD
-KIND_IF=$(ip -o link show | awk -F': ' '{print $2}' | grep "br-")
+if_prefix=$(docker network inspect kind --format '{{.Id}}'  | cut --characters -5)
+KIND_IF=$(ip link show | grep $if_prefix | head -n1 | cut -d ':' -f2 | tr -d " ")
 SRC_IP=192.168.105.1
 DST_NET=172.18.0.0/16
 HOST_IF=lima0
