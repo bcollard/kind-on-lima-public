@@ -1,4 +1,4 @@
-#docker network delete kind || true
+echo "Creating the 'kind' docker network, type bridge"
 docker network create \
     -d=bridge \
     --scope=local \
@@ -9,4 +9,12 @@ docker network create \
     --subnet=172.18.0.0/16 \
     -o "com.docker.network.bridge.enable_ip_masquerade"="true" \
     -o "com.docker.network.driver.mtu"="1500" kind || true
-#docker network connect kind registries || true
+
+echo "Configuring the 'kind' network with the docker registries"
+DOCKERIO_CACHE_NAME='registry-dockerio'
+QUAYIO_CACHE_NAME='registry-quayio'
+GCRIO_CACHE_NAME='registry-gcrio'
+docker network connect kind ${DOCKERIO_CACHE_NAME} 2>/dev/null || true
+docker network connect kind ${QUAYIO_CACHE_NAME} 2>/dev/null || true
+docker network connect kind ${GCRIO_CACHE_NAME} 2>/dev/null || true
+

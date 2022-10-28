@@ -29,11 +29,12 @@ rm -v ${CLUSTER_CONFIG_FILE}
 rm -v ${METALLB_CONFIG_FILE}
 mkdir -p ${KIND_HOME_DIR}
 
-# DOCKER IMAGE CACHES (registry:2)
-registry_img_loaded=$(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep registry:2 | wc -l)
+# DOCKER IMAGE CACHES ("registry v2" or "distribution:2.8.1")
+registry_img_loaded=$(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep "${REGISTRY_IMAGE_TAG}" | wc -l)
 if [ ${registry_img_loaded} -ne 1 ]; then
-  echo "Loading the registry:2 image into the VM..."
-  docker load < ${REGISTRIES_ROOT_DIR}/registry-image.tar
+  echo "Loading the ${REGISTRY_IMAGE_TAG} image into the VM..."
+  # docker load < ${REGISTRIES_ROOT_DIR}/registry-image.tar
+  docker load < ${REGISTRIES_ROOT_DIR}/distribution-distribution-2.8.1.tar
 fi
 
 mkdir -p ${HOME}/.kube/kind
@@ -89,7 +90,7 @@ EOF
   docker run \
     -d --restart=always -v ${KIND_HOME_DIR}/dockerio-cache-config.yml:/etc/docker/registry/config.yml -p ${DOCKERIO_CACHE_PORT}:${DOCKERIO_CACHE_PORT} \
     -v ${DOCKERIO_CACHE_DIR}:/var/lib/registry --name "${DOCKERIO_CACHE_NAME}" \
-    registry:2
+    ${REGISTRY_IMAGE_TAG}
 fi
 # quay.io mirror
 if [[ -z "${QUAYIO_CACHE_RUNNING}" || "${QUAYIO_CACHE_RUNNING}" = "false" ]] ; then
@@ -119,7 +120,7 @@ EOF
   docker run \
     -d --restart=always -v ${KIND_HOME_DIR}/quayio-cache-config.yml:/etc/docker/registry/config.yml -p ${QUAYIO_CACHE_PORT}:${QUAYIO_CACHE_PORT} \
     -v ${QUAYIO_CACHE_DIR}:/var/lib/registry --name "${QUAYIO_CACHE_NAME}" \
-    registry:2 
+    ${REGISTRY_IMAGE_TAG} 
 fi
 # gcr.io mirror
 if [[ -z "${GCRIO_CACHE_RUNNING}" || "${GCRIO_CACHE_RUNNING}" = "false" ]] ; then
@@ -149,7 +150,7 @@ EOF
   docker run \
     -d --restart=always -v ${KIND_HOME_DIR}/gcrio-cache-config.yml:/etc/docker/registry/config.yml -p ${GCRIO_CACHE_PORT}:${GCRIO_CACHE_PORT} \
     -v ${GCRIO_CACHE_DIR}:/var/lib/registry --name "${GCRIO_CACHE_NAME}" \
-    registry:2 
+    ${REGISTRY_IMAGE_TAG} 
 fi
 
 # KIND CLUSTER with CONTAINERD PATCHES
@@ -230,3 +231,9 @@ EOF
 
 kubectl apply -f ${METALLB_CONFIG_FILE}
 
+# NGINX
+echo "loading the Nginx image archive to Kind cluster ${NAME}"
+kind load image-archive ${REGISTRIES_ROOT_DIR}/nginx-1.22-image.tar --name ${NAME}
+
+
+echo "KinD cluster creation complete!"

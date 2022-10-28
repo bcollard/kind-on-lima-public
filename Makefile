@@ -70,3 +70,6 @@ test: ## deploy nginx and curl it from the host
 clean-test: ## clean the resources created by the test target
 	kubectl delete svc nginx; \
 	kubectl delete po nginx;
+
+registries: ## start the registries and try to connect them to the kind network
+	./lima/17-docker-registries.sh
