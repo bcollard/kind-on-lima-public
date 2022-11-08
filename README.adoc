@@ -8,7 +8,10 @@ Download and install the following tools, in addition to what is explained in th
 - kind
 - direnv
 
-== Local setup
+
+== Using the scripts
+
+First, take a look at the environment variables in `.envrc` and change the value of $LIMA_WORKDIR to the path of the cloned repo on your machine.
 
 Most of the scripts are available with `Make` targets.
 
@@ -20,15 +23,20 @@ make
 Initialize the env vars for this directory:
 
 ```bash
-direnv allow
+direnv allow .
 ```
 
-=== Lima CLI
+=== MacBook preparation
+
+Run the following make target to create a local work dir on your machine, where some docker images will be saved and where public images will be mirrored:
+```bash
+mk prepare-mac-host
+```
 
 Install the Lima CLI with:
 
 ```bash
-make dl-install-lima 0.11.1
+make dl-install-lima 0.12.0
 ```
 
 === Create/Start/Stop/Delete the Lima VM
@@ -51,8 +59,7 @@ make kind-create 5 5-gloo-mesh-cluster2
 
 === Configure the network E2E
 ```bash
-make setup-host-network
-make setup-lima-network
+make config-network-end-to-end
 ```
 
 === Test connectivity E2E
