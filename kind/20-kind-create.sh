@@ -17,7 +17,7 @@ if [ -z "$3" ]; then
 fi
 
 if [ -z "$4" ]; then
-  REGION=europe-west1-b
+  ZONE=europe-west1-b
 fi
 TWO_DIGITS=$(printf "%02d\n" ${NUM})
 KIND_HOME_DIR=${HOME}/.kube/kind
@@ -27,131 +27,6 @@ METALLB_CONFIG_FILE=${KIND_HOME_DIR}/$NAME-metallb.yaml
 # PREP
 rm -v ${CLUSTER_CONFIG_FILE}
 rm -v ${METALLB_CONFIG_FILE}
-mkdir -p ${KIND_HOME_DIR}
-
-# DOCKER IMAGE CACHES ("registry v2" or "distribution:2.8.1")
-registry_img_loaded=$(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep "${REGISTRY_IMAGE_TAG}" | wc -l)
-if [ ${registry_img_loaded} -ne 1 ]; then
-  echo "Loading the ${REGISTRY_IMAGE_TAG} image into the VM..."
-  # docker load < ${REGISTRIES_ROOT_DIR}/registry-image.tar
-  docker load < ${REGISTRIES_ROOT_DIR}/distribution-distribution-2.8.1.tar
-fi
-
-mkdir -p ${HOME}/.kube/kind
-DOCKERIO_CACHE_NAME='registry-dockerio'
-DOCKERIO_CACHE_PORT='5030'
-DOCKERIO_CACHE_RUNNING="$(docker inspect -f '{{.State.Running}}' "${DOCKERIO_CACHE_NAME}" 2>/dev/null || true)"
-QUAYIO_CACHE_NAME='registry-quayio'
-QUAYIO_CACHE_PORT='5010'
-QUAYIO_CACHE_RUNNING="$(docker inspect -f '{{.State.Running}}' "${QUAYIO_CACHE_NAME}" 2>/dev/null || true)"
-GCRIO_CACHE_NAME='registry-gcrio'
-GCRIO_CACHE_PORT='5020'
-GCRIO_CACHE_RUNNING="$(docker inspect -f '{{.State.Running}}' "${GCRIO_CACHE_NAME}" 2>/dev/null || true)"
-
-# clean stopped containers
-if [ "${DOCKERIO_CACHE_RUNNING}" = "false" ]; then
-  echo "Removing stopped container ${DOCKERIO_CACHE_NAME}"
-  docker rm -f "${DOCKERIO_CACHE_NAME}" 2>/dev/null || true
-fi
-if [ "${QUAYIO_CACHE_RUNNING}" = "false" ]; then
-  echo "Removing stopped container ${QUAYIO_CACHE_NAME}"
-  docker rm -f "${QUAYIO_CACHE_NAME}" 2>/dev/null || true
-fi
-if [ "${GCRIO_CACHE_RUNNING}" = "false" ]; then
-  echo "Removing stopped container ${GCRIO_CACHE_NAME}"
-  docker rm -f "${GCRIO_CACHE_NAME}" 2>/dev/null || true
-fi
-
-# docker.io mirror
-if [[ -z "${DOCKERIO_CACHE_RUNNING}" || "${DOCKERIO_CACHE_RUNNING}" = "false" ]] ; then
-  cat > ${KIND_HOME_DIR}/dockerio-cache-config.yml <<EOF
-version: 0.1
-proxy:
-  remoteurl: https://registry-1.docker.io
-log:
-  fields:
-    service: registry
-storage:
-  cache:
-    blobdescriptor: inmemory
-  filesystem:
-    rootdirectory: /var/lib/registry
-http:
-  addr: :${DOCKERIO_CACHE_PORT}
-  headers:
-    X-Content-Type-Options: [nosniff]
-health:
-  storagedriver:
-    enabled: true
-    interval: 10s
-    threshold: 3
-EOF
-  echo "Starting docker.io mirror"
-  docker run \
-    -d --restart=always -v ${KIND_HOME_DIR}/dockerio-cache-config.yml:/etc/docker/registry/config.yml -p ${DOCKERIO_CACHE_PORT}:${DOCKERIO_CACHE_PORT} \
-    -v ${DOCKERIO_CACHE_DIR}:/var/lib/registry --name "${DOCKERIO_CACHE_NAME}" \
-    ${REGISTRY_IMAGE_TAG}
-fi
-# quay.io mirror
-if [[ -z "${QUAYIO_CACHE_RUNNING}" || "${QUAYIO_CACHE_RUNNING}" = "false" ]] ; then
-  cat > ${KIND_HOME_DIR}/quayio-cache-config.yml <<EOF
-version: 0.1
-proxy:
-  remoteurl: https://quay.io
-log:
-  fields:
-    service: registry
-storage:
-  cache:
-    blobdescriptor: inmemory
-  filesystem:
-    rootdirectory: /var/lib/registry
-http:
-  addr: :${QUAYIO_CACHE_PORT}
-  headers:
-    X-Content-Type-Options: [nosniff]
-health:
-  storagedriver:
-    enabled: true
-    interval: 10s
-    threshold: 3
-EOF
-  echo "Starting quay.io mirror"
-  docker run \
-    -d --restart=always -v ${KIND_HOME_DIR}/quayio-cache-config.yml:/etc/docker/registry/config.yml -p ${QUAYIO_CACHE_PORT}:${QUAYIO_CACHE_PORT} \
-    -v ${QUAYIO_CACHE_DIR}:/var/lib/registry --name "${QUAYIO_CACHE_NAME}" \
-    ${REGISTRY_IMAGE_TAG} 
-fi
-# gcr.io mirror
-if [[ -z "${GCRIO_CACHE_RUNNING}" || "${GCRIO_CACHE_RUNNING}" = "false" ]] ; then
-  cat > ${KIND_HOME_DIR}/gcrio-cache-config.yml <<EOF
-version: 0.1
-proxy:
-  remoteurl: https://gcr.io
-log:
-  fields:
-    service: registry
-storage:
-  cache:
-    blobdescriptor: inmemory
-  filesystem:
-    rootdirectory: /var/lib/registry
-http:
-  addr: :${GCRIO_CACHE_PORT}
-  headers:
-    X-Content-Type-Options: [nosniff]
-health:
-  storagedriver:
-    enabled: true
-    interval: 10s
-    threshold: 3
-EOF
-  echo "Starting gcr.io mirror"
-  docker run \
-    -d --restart=always -v ${KIND_HOME_DIR}/gcrio-cache-config.yml:/etc/docker/registry/config.yml -p ${GCRIO_CACHE_PORT}:${GCRIO_CACHE_PORT} \
-    -v ${GCRIO_CACHE_DIR}:/var/lib/registry --name "${GCRIO_CACHE_NAME}" \
-    ${REGISTRY_IMAGE_TAG} 
-fi
 
 # KIND CLUSTER with CONTAINERD PATCHES
 cat << EOF > ${CLUSTER_CONFIG_FILE}
@@ -169,6 +44,12 @@ nodes:
 networking:
   serviceSubnet: "10.${NUM}.0.0/16"
   podSubnet: "10.1${NUM}.0.0/16"
+kubeadmConfigPatches:
+- |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        node-labels: "ingress-ready=true,topology.kubernetes.io/region=${REGION},topology.kubernetes.io/zone=${ZONE}"
 containerdConfigPatches:
 - |-
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
@@ -183,28 +64,27 @@ containerdConfigPatches:
     endpoint = ["http://${GCRIO_CACHE_NAME}:${GCRIO_CACHE_PORT}"]
   [plugins."io.containerd.grpc.v1.cri".registry.configs."gcr.io".tls]
     insecure_skip_verify = true
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."us-docker.pkg.dev"]
+    endpoint = ["http://${USDOCKERPKGDEV_CACHE_NAME}:${USDOCKERPKGDEV_CACHE_PORT}"]
+  [plugins."io.containerd.grpc.v1.cri".registry.configs."us-docker.pkg.dev".tls]
+    insecure_skip_verify = true
 EOF
 
 # KinD image
 kind_img_loaded=$(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep "kindest/node:${KIND_NODE_VERSION}" | wc -l)
 if [ ${kind_img_loaded} -ne 1 ]; then
   echo "Loading the KinD node image to the VM..."
-  docker load < ${REGISTRIES_ROOT_DIR}/kind-${KIND_NODE_VERSION}-image.tar
+  docker load < ${LIMA_DATA_DIR}/kind-${KIND_NODE_VERSION}-image.tar
 fi
 echo "Creating the KinD cluster with name ${NAME}"
 kind create cluster --config=${CLUSTER_CONFIG_FILE} --image kindest/node:${KIND_NODE_VERSION} --retain
 #kind export logs --name ${NAME}; kind delete cluster
-
-# NETWORK SETUP FOR DOCKER REGISTRIES
-echo "Setting up the network for the docker registries"
-docker network connect kind ${DOCKERIO_CACHE_NAME} 2>/dev/null || true
-docker network connect kind ${QUAYIO_CACHE_NAME} 2>/dev/null || true
-docker network connect kind ${GCRIO_CACHE_NAME} 2>/dev/null || true
+echo "KinD cluster creation complete!"
 
 # METALLB
 echo "Loading the MetalLB images to the KinD node"
-kind load image-archive ${REGISTRIES_ROOT_DIR}/quay.io-metallb-controller-v0.11.0.tar --name ${NAME}
-kind load image-archive ${REGISTRIES_ROOT_DIR}/quay.io-metallb-speaker-v0.11.0.tar --name ${NAME}
+kind load image-archive ${LIMA_DATA_DIR}/quay.io-metallb-controller-v0.11.0.tar --name ${NAME}
+kind load image-archive ${LIMA_DATA_DIR}/quay.io-metallb-speaker-v0.11.0.tar --name ${NAME}
 
 echo "Installing MetalLB"
 kubectl apply -f ${LIMA_WORKDIR}/metallb/namespace.yaml
@@ -233,7 +113,13 @@ kubectl apply -f ${METALLB_CONFIG_FILE}
 
 # NGINX
 echo "loading the Nginx image archive to Kind cluster ${NAME}"
-kind load image-archive ${REGISTRIES_ROOT_DIR}/nginx-1.22-image.tar --name ${NAME}
+kind load image-archive ${LIMA_DATA_DIR}/nginx-1.22-image.tar --name ${NAME}
 
 
-echo "KinD cluster creation complete!"
+# Registries
+echo "Configuring image registry mirrors"
+exec ${LIMA_WORKDIR}/lima/17-docker-registries.sh
+echo "Registries configured and attached to local Kind bridge"
+
+echo "End of script"
+

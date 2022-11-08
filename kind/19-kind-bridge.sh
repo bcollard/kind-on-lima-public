@@ -11,10 +11,8 @@ docker network create \
     -o "com.docker.network.driver.mtu"="1500" kind || true
 
 echo "Configuring the 'kind' network with the docker registries"
-DOCKERIO_CACHE_NAME='registry-dockerio'
-QUAYIO_CACHE_NAME='registry-quayio'
-GCRIO_CACHE_NAME='registry-gcrio'
 docker network connect kind ${DOCKERIO_CACHE_NAME} 2>/dev/null || true
 docker network connect kind ${QUAYIO_CACHE_NAME} 2>/dev/null || true
 docker network connect kind ${GCRIO_CACHE_NAME} 2>/dev/null || true
+docker network connect kind ${USDOCKERPKGDEV_CACHE_NAME} 2>/dev/null || true
 

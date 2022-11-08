@@ -7,7 +7,7 @@ help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
 
-dl-install-lima: ## download the provided Lima version and install it in the current folder
+dl-install-lima: ## download the provided Lima version (prompt) and install it in the current folder
 	@read -p "enter Lima version to install: " VERSION; \
 	curl -L -v -O https://github.com/lima-vm/lima/releases/download/v$$VERSION/lima-$$VERSION-Darwin-x86_64.tar.gz; \
 	tar xvfz lima-$$VERSION-Darwin-x86_64.tar.gz; \
@@ -28,6 +28,9 @@ delete: ## delete the default Lima instance
 
 create: ## create the default Lima instance
 	./lima/02-lima-create.sh
+
+shell: ## open Lima shell
+	./lima/12-lima-shell.sh
 
 clear-obsolete-kind-context: ## remove a kind context from the kubeconfig file 
 	@read -p "enter kind context to delete: " CONTEXT; \
