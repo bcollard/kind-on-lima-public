@@ -74,7 +74,7 @@ clean-test: ## clean the resources created by the test target
 	kubectl delete svc nginx; \
 	kubectl delete po nginx;
 
-registries: ## start the registries and try to connect them to the kind network
+registries: setup-kind-bridge ## start the registries and try to connect them to the kind network
 	@./lima/17-docker-registries.sh
 
 prepare-mac-host: ## create the lima workdir and save common images to the work dir

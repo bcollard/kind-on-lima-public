@@ -38,6 +38,7 @@ Install the Lima CLI with:
 ```bash
 make dl-install-lima 0.12.0
 ```
+This will download the lima command line and save it in your workdir. Then the makefile targets will use this binary.
 
 === Create/Start/Stop/Delete the Lima VM
 ```bash
