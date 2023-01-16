@@ -1,0 +1,111 @@
+
+
+# Example to run ubuntu using vmType: vz instead of qemu (Default)
+# This example requires Lima v0.14.0 or later and macOS 13.
+vmType: "vz"
+rosetta:
+  # Enable Rosetta for Linux.
+  # Hint: try `softwareupdate --install-rosetta` if Lima gets stuck at `Installing rosetta...`
+  enabled: true
+  # Register rosetta to /proc/sys/fs/binfmt_misc
+  binfmt: true
+
+images:
+- location: "https://cloud-images.ubuntu.com/releases/22.04/release-20220712/ubuntu-22.04-server-cloudimg-amd64.img"
+  arch: "x86_64"
+- location: "https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-amd64.img"
+  arch: "x86_64"
+- location: "https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-arm64.img"
+  arch: "aarch64"
+
+cpus: 8
+
+# Memory size
+# Default: "4GiB"
+memory: "26GiB"
+
+# Disk size
+# Default: "100GiB"
+disk: "100GiB"
+
+containerd:
+  system: false
+  user: false
+
+mounts:
+  - location: "~"
+    writable: false
+  - location: "/tmp/lima"
+    writable: true
+  - location: "/opt/lima"
+    writable: true
+
+mountType: "virtiofs"
+
+provision:
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      # https://kind.sigs.k8s.io/docs/user/known-issues/#pod-errors-due-to-too-many-open-files
+      sysctl fs.inotify.max_user_watches=524288
+      sysctl fs.inotify.max_user_instances=512
+      command -v docker >/dev/null 2>&1 && exit 0
+      if [ ! -e /etc/systemd/system/docker.socket.d/override.conf ]; then
+        mkdir -p /etc/systemd/system/docker.socket.d
+        # Alternatively we could just add the user to the "docker" group, but that requires restarting the user session
+        cat <<-EOF >/etc/systemd/system/docker.socket.d/override.conf
+        [Socket]
+        SocketUser=${LIMA_CIDATA_USER}
+      EOF
+      fi
+      export DEBIAN_FRONTEND=noninteractive
+      curl -fsSL https://get.docker.com | sh
+      apt-get install -y net-tools traceroute arping jq
+      # groupadd docker || true
+      # usermod -aG docker bapt
+
+probes:
+  - script: |
+      #!/bin/bash
+      set -eux -o pipefail
+      if ! timeout 30s bash -c "until command -v docker >/dev/null 2>&1; do sleep 3; done"; then
+        echo >&2 "docker is not installed yet"
+        exit 1
+      fi
+      if ! timeout 30s bash -c "until pgrep dockerd; do sleep 3; done"; then
+        echo >&2 "dockerd is not running"
+        exit 1
+      fi
+    hint: See "/var/log/cloud-init-output.log". in the guest
+
+portForwards:
+  - guestSocket: "/run/docker.sock"
+    hostSocket: "{{.Home}}/docker.sock"
+
+hostResolver:
+  # hostResolver.hosts requires lima 0.8.3 or later. Names defined here will also
+  # resolve inside containers, and not just inside the VM itself.
+  hosts:
+    host.docker.internal: host.lima.internal
+
+ssh:
+  localPort: 60006
+  # Load ~/.ssh/*.pub in addition to $LIMA_HOME/_config/user.pub , for allowing DOCKER_HOST=ssh:// .
+  # This option is enabled by default.
+  # If you have an insecure key under ~/.ssh, do not use this option.
+  loadDotSSHPubKeys: true
+
+networks:
+  # The "vzNAT" IP address is accessible from the host, but not from other guests.
+  - vzNAT: true
+  # # Lima can manage daemons for networks defined in $LIMA_HOME/_config/networks.yaml
+  # # automatically. Both vde_switch and vde_vmnet binaries must be installed into
+  # # secure locations only alterable by the "root" user.
+  # # https://github.com/lima-vm/lima/blob/dcda59c5fde06a5231110059fe5628a1ad624fe9/docs/network.md
+  # - lima: shared
+  #   # # MAC address of the instance; lima will pick one based on the instance name,
+  #   # # so DHCP assigned ip addresses should remain constant over instance restarts.
+  #   # macAddress: ""
+  #   # # Interface name, defaults to "lima0", "lima1", etc.
+  #   # interface: ""

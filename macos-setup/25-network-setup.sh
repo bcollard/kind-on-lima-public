@@ -10,7 +10,7 @@
 ifconfig bridge100
 
 # get IP addr on the lima0 interface
-LIMA_IP_ADDR=$(limactl shell docker -- ip -o -4 a s | grep lima0 | grep -E -o 'inet [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | cut -d' ' -f2)
+LIMA_IP_ADDR=$(limactl shell ${LIMA_INSTANCE} -- ip -o -4 a s | grep lima0 | grep -E -o 'inet [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | cut -d' ' -f2)
 echo $LIMA_IP_ADDR
 
 # add route to the Lima VM

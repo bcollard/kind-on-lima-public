@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-${LIMA_WORKDIR}/bin/limactl stop docker
+${LIMA_WORKDIR}/bin/limactl stop ${LIMA_INSTANCE}

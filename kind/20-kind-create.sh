@@ -25,8 +25,8 @@ CLUSTER_CONFIG_FILE=${KIND_HOME_DIR}/$NAME.yaml
 METALLB_CONFIG_FILE=${KIND_HOME_DIR}/$NAME-metallb.yaml
 
 # PREP
-rm -v ${CLUSTER_CONFIG_FILE}
-rm -v ${METALLB_CONFIG_FILE}
+rm -v ${CLUSTER_CONFIG_FILE} || true
+rm -v ${METALLB_CONFIG_FILE} || true
 
 # KIND CLUSTER with CONTAINERD PATCHES
 cat << EOF > ${CLUSTER_CONFIG_FILE}
@@ -76,10 +76,14 @@ if [ ${kind_img_loaded} -ne 1 ]; then
   echo "Loading the KinD node image to the VM..."
   docker load < ${LIMA_DATA_DIR}/kind-${KIND_NODE_VERSION}-image.tar
 fi
+
+# KinD cluster
 echo "Creating the KinD cluster with name ${NAME}"
 kind create cluster --config=${CLUSTER_CONFIG_FILE} --image kindest/node:${KIND_NODE_VERSION} --retain
 #kind export logs --name ${NAME}; kind delete cluster
 echo "KinD cluster creation complete!"
+
+export CONTEXT_NAME="kind-${NAME}"
 
 # METALLB
 echo "Loading the MetalLB images to the KinD node"
@@ -87,10 +91,10 @@ kind load image-archive ${LIMA_DATA_DIR}/quay.io-metallb-controller-v0.11.0.tar 
 kind load image-archive ${LIMA_DATA_DIR}/quay.io-metallb-speaker-v0.11.0.tar --name ${NAME}
 
 echo "Installing MetalLB"
-kubectl apply -f ${LIMA_WORKDIR}/metallb/namespace.yaml
-kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)" 
-kubectl apply -f ${LIMA_WORKDIR}/metallb/metallb.yaml
-kubectl -n metallb-system wait po --for condition=Ready --timeout -1s --all
+kubectl --context ${CONTEXT_NAME} apply -f ${LIMA_WORKDIR}/metallb/namespace.yaml
+kubectl --context ${CONTEXT_NAME} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)" 
+kubectl --context ${CONTEXT_NAME} apply -f ${LIMA_WORKDIR}/metallb/metallb.yaml
+kubectl --context ${CONTEXT_NAME} -n metallb-system wait po --for condition=Ready --timeout -1s --all
 
 SUBNET_PREFIX=`docker network inspect kind | jq -r '.[0].IPAM.Config[0].Subnet' | awk -F. '{print $1"."$2}'`
 
@@ -109,7 +113,7 @@ data:
       - ${SUBNET_PREFIX}.${NUM}.1-${SUBNET_PREFIX}.${NUM}.254
 EOF
 
-kubectl apply -f ${METALLB_CONFIG_FILE}
+kubectl --context ${CONTEXT_NAME} apply -f ${METALLB_CONFIG_FILE}
 
 # NGINX
 echo "loading the Nginx image archive to Kind cluster ${NAME}"
@@ -122,4 +126,3 @@ exec ${LIMA_WORKDIR}/lima/17-docker-registries.sh
 echo "Registries configured and attached to local Kind bridge"
 
 echo "End of script"
-

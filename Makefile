@@ -14,20 +14,21 @@ dl-install-lima: ## download the provided Lima version (prompt) and install it i
 	echo "version $$VERSION installed under ./bin"; \
 	./bin/limactl --version
 
+echo-current-instance: ## show the current Lima instance (machine name)
+	@echo ${LIMA_INSTANCE}
 
-stop: ## stop the current Lima instance
-	./lima/91-lima-stop.sh
-
-start: ## start the default Lima instance
-	./lima/10-lima-start.sh; \
-	echo "now run: make setup-host-network"; \
-	echo "then run: make setup-lima-network"
+create: ## create the default Lima instance
+	./lima/02-lima-create.sh
 
 delete: ## delete the default Lima instance
 	./lima/95-lima-delete.sh
 
-create: ## create the default Lima instance
-	./lima/02-lima-create.sh
+start: ## start the default Lima instance
+	@./lima/10-lima-start.sh; \
+	echo "now run: make config-network-end-to-end"
+
+stop: ## stop the current Lima instance
+	./lima/91-lima-stop.sh
 
 shell: ## open Lima shell
 	./lima/12-lima-shell.sh
@@ -41,8 +42,19 @@ clear-obsolete-kind-context: ## remove a kind context from the kubeconfig file
 kind-create: ## create a new kind cluster. Usage: make kind-create <id> <name>
 	@./kind/20-kind-create.sh $(filter-out $@,$(MAKECMDGOALS))
 
+kind-create-triple: ## create three clusters named after Gloo Platform typical arch
+	@./kind/22-kind-create-triple.sh
+
+kind-create-three: kind-create-triple
+
 kind-delete: ## delete a kind cluster. Usage: make kind-delete <name>
 	@./kind/90-kind-delete.sh $(filter-out $@,$(MAKECMDGOALS))
+
+kind-delete-all: ## delete all kind clusters
+	@./kind/93-kind-delete-all.sh
+
+list-machines: ## list Lima machines
+	@./bin/limactl list
 
 list-kind-clusters: ## list KinD clusters
 	@kind get clusters
@@ -76,6 +88,9 @@ clean-test: ## clean the resources created by the test target
 
 registries: setup-kind-bridge ## start the registries and try to connect them to the kind network
 	@./lima/17-docker-registries.sh
+
+registries-stop: ## stop the registries
+	@./lima/18-stop-docker-registries.sh
 
 prepare-mac-host: ## create the lima workdir and save common images to the work dir
 	@./macos-setup/05-prepare-mac-host.sh
