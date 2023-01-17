@@ -79,7 +79,7 @@ fi
 
 # KinD cluster
 echo "Creating the KinD cluster with name ${NAME}"
-kind create cluster --config=${CLUSTER_CONFIG_FILE} --image kindest/node:${KIND_NODE_VERSION} --retain
+kind create cluster -q --config=${CLUSTER_CONFIG_FILE} --image kindest/node:${KIND_NODE_VERSION} --retain
 #kind export logs --name ${NAME}; kind delete cluster
 echo "KinD cluster creation complete!"
 
@@ -116,8 +116,8 @@ EOF
 kubectl --context ${CONTEXT_NAME} apply -f ${METALLB_CONFIG_FILE}
 
 # NGINX
-echo "loading the Nginx image archive to Kind cluster ${NAME}"
-kind load image-archive ${LIMA_DATA_DIR}/nginx-1.22-image.tar --name ${NAME}
+#echo "loading the Nginx image archive to Kind cluster ${NAME}"
+#kind load image-archive ${LIMA_DATA_DIR}/nginx-1.22-image.tar --name ${NAME}
 
 
 # Registries
