@@ -48,14 +48,23 @@ make dl-install-lima 0.14.2
 
 This will download the lima command-line (limactl) and save it in your workdir. Then the makefile targets will use this binary.
 
-=== Create and start the Lima VM
-make delete
+=== Manage the Lima VM
 
+The Lima machine that will be used by the following commands is the one defined in the `LIMA_INSTANCE` environment variable (see the `.envrc` file)
 
-Other targets include:
+**Example:** `LIMA_INSTANCE=vz` will use the vz.yaml config file for Lima. And all the following commands will be executed on the VM named `vz`.
+
 ```bash
+# list the Lime machines:
+make list-machines
+# create (and start) the VM:
 make create
+# stop the VM:
+make stop
+# start the VM:
 make start
+# delete the VM:
+make delete
 ```
 
 === Configure the network E2E
