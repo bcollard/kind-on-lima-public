@@ -115,11 +115,6 @@ EOF
 
 kubectl --context ${CONTEXT_NAME} apply -f ${METALLB_CONFIG_FILE}
 
-# NGINX
-#echo "loading the Nginx image archive to Kind cluster ${NAME}"
-#kind load image-archive ${LIMA_DATA_DIR}/nginx-1.22-image.tar --name ${NAME}
-
-
 # Registries
 echo "Configuring image registry mirrors"
 exec ${LIMA_WORKDIR}/lima/17-docker-registries.sh
