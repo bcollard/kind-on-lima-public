@@ -6,6 +6,9 @@
 # Host
 ##########
 
+#first delete any old route to 172.18
+sudo route -nv delete -net 172.18
+
 # show members of the bridge vnet
 ifconfig bridge100
 
