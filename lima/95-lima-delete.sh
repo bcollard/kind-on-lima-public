@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-${LIMA_WORKDIR}/bin/limactl delete docker
+${LIMACTL_BIN} delete ${LIMA_INSTANCE}

@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-${LIMA_WORKDIR}/bin/limactl shell ${LIMA_INSTANCE}
+${LIMACTL_BIN} shell ${LIMA_INSTANCE}
