@@ -80,7 +80,7 @@ test: ## deploy nginx and curl it from the host
 	kubectl expose po/nginx --port 80 --type LoadBalancer; \
 	kubectl get svc; \
 	kubectl wait po --for condition=Ready --timeout 20s nginx; \
-	curl --max-time 11 --connect-timeout 10 -I -v $(kubectl get svc nginx -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+	curl --max-time 11 --connect-timeout 10 -I -v $$(kubectl get svc nginx -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
 clean-test: ## clean the resources created by the test target
 	kubectl delete svc nginx; \

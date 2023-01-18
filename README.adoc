@@ -60,6 +60,9 @@ The Lima machine that will be used by the following commands is the one defined 
 
 **Example:** `LIMA_INSTANCE=vz` will use the vz.yaml config file for Lima. And all the following commands will be executed on the VM named `vz`.
 
+**It's recommanded to use the `vz` instance (requires MacOS 13.0+) as it's the fastest one. It's based on macos Virtualization.framework.** +
+People still using MacOS 12 or lower can use the `docker` instance which is using QEMU.
+
 ```bash
 # list the Lima machines:
 make list-machines
