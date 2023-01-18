@@ -3,22 +3,19 @@
 Original blog post: https://baptistout.net/posts/kubernetes-clusters-on-macos-with-loadbalancer-without-docker-desktop/
 
 == Prerequisites
-Download and install the following tools, in addition to what is explained in the blog:
 
-- kind
-- direnv
+This guide now requires **MacOS 13.0+** (Ventura).
+
+Download and install the following tools:
+
+- https://kind.sigs.k8s.io/[kind] -> `brew install kind`
+- https://direnv.net/[direnv] -> `brew install direnv`
+- https://baptistout.net/posts/kubernetes-clusters-on-macos-with-loadbalancer-without-docker-desktop/#_setup_part_3_the_docker_cli[docker CLI] (not docker desktop, just the CLI) -> `brew install docker`
 
 
-== Using the scripts
+== Getting started
 
-First, take a look at the environment variables in `.envrc` and change the value of $LIMA_WORKDIR to the path of the cloned repo on your machine.
-
-Most of the scripts are available with `Make` targets.
-
-List all the targets with
-```bash
-make
-```
+First, take a look at the environment variables in `.envrc` and change the value of `LIMA_WORKDIR` to the path of the cloned repo on your machine.
 
 Initialize the env vars for this directory:
 
@@ -26,27 +23,65 @@ Initialize the env vars for this directory:
 direnv allow .
 ```
 
-=== MacBook preparation
+=== Using the scripts
 
-Run the following make target to create a local work dir on your machine, where some docker images will be saved and where public images will be mirrored:
+Most of the scripts are available with **Makefile** targets.
+
+List all the targets with
 ```bash
-mk prepare-mac-host
+# Safely run `make` to list all the targets
+make
 ```
 
+
+=== MacBook preparation
+
+Run the following make target to create a local work dir on your machine. A few docker images will be saved locally as archives. This may take a few minutes.
+
+```bash
+make prepare-mac-host
+```
+
+=== Lima CLI
 Install the Lima CLI with:
 
 ```bash
-make dl-install-lima 0.12.0
+make dl-install-lima 0.14.2
 ```
-This will download the lima command line and save it in your workdir. Then the makefile targets will use this binary.
 
-=== Create/Start/Stop/Delete the Lima VM
+This will download the lima command-line (`limactl`) and save it in your `LIMA_WORKDIR`. Then the **Makefile** targets will use this binary. This way, the Lima version is pinned and you don't have to worry about upgrading with `brew`.
+
+=== Manage the Lima VM
+
+The Lima machine that will be used by the following commands is the one defined in the `LIMA_INSTANCE` environment variable (see the `.envrc` file)
+
+**Example:** `LIMA_INSTANCE=vz` will use the vz.yaml config file for Lima. And all the following commands will be executed on the VM named `vz`.
+
 ```bash
+# list the Lima machines:
+make list-machines
+# create (and start) the VM:
 make create
+# stop the VM:
 make stop
+# start the VM:
 make start
+# delete the VM:
 make delete
 ```
+
+=== Configure the network E2E
+The following command will:
+
+- configure the network on your MacBook machine to allow access to the Lima VM
+- pre-configures the Kind network bridge on the Lima VM so that it's connected to the local docker registries
+- configure the network on the Lima VM to allow access from the MacBook host to the KinD clusters
+
+```bash
+make config-network-end-to-end
+```
+
+Run this command everytime you restart the Lima VM.
 
 === Spin up a new KinD cluster
 ```bash
@@ -58,13 +93,29 @@ make kind-create 4 4-gloo-mesh-cluster1
 make kind-create 5 5-gloo-mesh-cluster2
 ```
 
-=== Configure the network E2E
-```bash
-make config-network-end-to-end
-```
+The `kind-create` script takes care of:
+
+- creating a new KinD cluster
+- configuring MetalLB so that you can use a LoadBalancer service
+- configuring the KinD network bridge to be connected to the local docker registries
 
 === Test connectivity E2E
+The following command will help you test the connectivity end-to-end.
+
+It will deploy an nginx instance (pod) on the current cluster, expose the nginx service with a Service type LoadBalancer, and then curl the nginx service from the MacBook host.
+
 ```bash
 make test
 make clean-test
+```
+
+=== Manage KinD clusters
+
+```bash
+# list all the kind clusters:
+make kind-list
+# delete a specific kind cluster with:
+make kind-delete 1-istio
+# delete all kind clusters with:
+make kind-delete-all
 ```
