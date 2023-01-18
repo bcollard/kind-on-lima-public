@@ -36,11 +36,14 @@ make
 
 === MacBook preparation
 
-Run the following make target to create a local work dir on your machine. A few docker images will be saved locally as archives. This may take a few minutes.
+Run the following make target to create a local data dir (`LIMA_DATA_DIR` env var) on your machine. A few docker images will be saved locally as archives. This may take a few minutes.
 
 ```bash
 make prepare-mac-host
+ls -l $LIMA_DATA_DIR
 ```
+
+The data dir is mainly used by the docker registries to cache images.
 
 === Lima CLI
 Install the Lima CLI with:
