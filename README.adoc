@@ -1,6 +1,6 @@
 = Run multiple KinD clusters on Lima
 
-Original blog post: https://baptistout.net/posts/kubernetes-clusters-on-macos-with-loadbalancer-without-docker-desktop/
+Demo: https://asciinema.org/a/gZysYfnX0XehRhTnKs8p0BTWS?speed=3&i=2
 
 == Prerequisites
 
