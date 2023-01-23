@@ -8,12 +8,8 @@ help:
 
 
 dl-install-lima: ## download the provided Lima version (prompt) and install it in the current folder
-	@read -p "enter Lima version to install: " VERSION; \
-	curl -L -v -O https://github.com/lima-vm/lima/releases/download/v$$VERSION/lima-$$VERSION-Darwin-x86_64.tar.gz; \
-	tar xvfz lima-$$VERSION-Darwin-x86_64.tar.gz; \
-	echo "version $$VERSION installed under ./bin"; \
-	./bin/limactl --version
-
+	@./lima/01-install-lima.sh
+	
 echo-current-instance: ## show the current Lima instance (machine name)
 	@echo ${LIMA_INSTANCE}
 
