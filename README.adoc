@@ -46,7 +46,13 @@ ls -l $LIMA_DATA_DIR
 The data dir is mainly used by the docker registries to cache images.
 
 === Lima CLI
-Install the Lima CLI with:
+Two methods here:
+- **Method #1**: install Lima with brew: `brew install lima`
+- **Method #2**: download the Lima CLI binary with the make target (see below). Allows to pin a version and avoid compatibility errors when upgrading Lima with brew.
+
+NOTE: -> In any case, double check that the env vars in `.envrc` are aligned with the method you chose!
+
+**Method #2**: Install the Lima CLI with the make target:
 
 ```bash
 make dl-install-lima 0.14.2
