@@ -47,6 +47,7 @@ The data dir is mainly used by the docker registries to cache images.
 
 === Lima CLI
 Two methods here:
+
 - **Method #1**: install Lima with brew: `brew install lima`
 - **Method #2**: download the Lima CLI binary with the make target (see below). Allows to pin a version and avoid compatibility errors when upgrading Lima with brew.
 
