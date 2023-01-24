@@ -50,7 +50,7 @@ The data dir is mainly used by the docker registries to cache images.
 Two methods here:
 
 - **Method #1**: install Lima with brew: `brew install lima`
-- **Method #2**: download the Lima CLI binary with the make target (see below): `make dl-install-lima 0.14.2`. This will download the lima command-line (`limactl`) and save it in your `LIMA_WORKDIR`. Then the **Makefile** targets will use this binary. This way, the Lima version is pinned and you don't have to worry about upgrading with `brew`.
+- **Method #2**: download the Lima CLI binary with the make target (see below): `make dl-install-lima` ; then you are prompted for the version to download (ex. "0.14.2"). This will download the lima command-line (`limactl`) and save it in your `LIMA_WORKDIR`. Then the **Makefile** targets will use this binary. This way, the Lima version is pinned and you don't have to worry about upgrading with `brew`.
 
 NOTE: -> In any case, double check that the env vars named `LIMA_BIN` and `LIMACTL_BIN` in `.envrc` are aligned with the method you chose!
 
