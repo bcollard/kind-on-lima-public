@@ -11,6 +11,7 @@ Download and install the following tools:
 - https://kind.sigs.k8s.io/[kind] -> `brew install kind`
 - https://direnv.net/[direnv] -> `brew install direnv`
 - https://baptistout.net/posts/kubernetes-clusters-on-macos-with-loadbalancer-without-docker-desktop/#_setup_part_3_the_docker_cli[docker CLI] (not docker desktop, just the CLI) -> `brew install docker`
+- **Only for Apple Silicon Mac (M1/M2)**: install Rosetta -> `softwareupdate --install-rosetta --agree-to-license`
 
 
 == Getting started
@@ -49,17 +50,9 @@ The data dir is mainly used by the docker registries to cache images.
 Two methods here:
 
 - **Method #1**: install Lima with brew: `brew install lima`
-- **Method #2**: download the Lima CLI binary with the make target (see below). Allows to pin a version and avoid compatibility errors when upgrading Lima with brew.
+- **Method #2**: download the Lima CLI binary with the make target (see below): `make dl-install-lima 0.14.2`. This will download the lima command-line (`limactl`) and save it in your `LIMA_WORKDIR`. Then the **Makefile** targets will use this binary. This way, the Lima version is pinned and you don't have to worry about upgrading with `brew`.
 
-NOTE: -> In any case, double check that the env vars in `.envrc` are aligned with the method you chose!
-
-**Method #2**: Install the Lima CLI with the make target:
-
-```bash
-make dl-install-lima 0.14.2
-```
-
-This will download the lima command-line (`limactl`) and save it in your `LIMA_WORKDIR`. Then the **Makefile** targets will use this binary. This way, the Lima version is pinned and you don't have to worry about upgrading with `brew`.
+NOTE: -> In any case, double check that the env vars named `LIMA_BIN` and `LIMACTL_BIN` in `.envrc` are aligned with the method you chose!
 
 === Manage the Lima VM
 
