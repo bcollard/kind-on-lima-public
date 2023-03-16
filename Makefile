@@ -10,24 +10,25 @@ help:
 dl-install-lima: ## download the provided Lima version (prompt) and install it in the current folder
 	@./lima/01-install-lima.sh
 	
-echo-current-instance: ## show the current Lima instance (machine name)
+print-current-instance: ## show the current Lima instance (machine name)
 	@echo ${LIMA_INSTANCE}
 
 create: ## create the default Lima instance
-	./lima/02-lima-create.sh
+	@./lima/02-lima-create.sh; \
+	echo "now run: make config-network-end-to-end"
 
 delete: ## delete the default Lima instance
-	./lima/95-lima-delete.sh
+	@./lima/95-lima-delete.sh
 
 start: ## start the default Lima instance
 	@./lima/10-lima-start.sh; \
 	echo "now run: make config-network-end-to-end"
 
 stop: ## stop the current Lima instance
-	./lima/91-lima-stop.sh
+	@./lima/91-lima-stop.sh
 
 shell: ## open Lima shell
-	./lima/12-lima-shell.sh
+	@./lima/12-lima-shell.sh
 
 clear-obsolete-kind-context: ## remove a kind context from the kubeconfig file 
 	@read -p "enter kind context to delete: " CONTEXT; \
@@ -50,7 +51,7 @@ kind-delete-all: ## delete all kind clusters
 	@./kind/93-kind-delete-all.sh
 
 list-machines: ## list Lima machines
-	@./bin/limactl list
+	@${LIMACTL_BIN} list
 
 list-kind-clusters: ## list KinD clusters
 	@kind get clusters
