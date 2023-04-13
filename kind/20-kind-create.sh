@@ -13,6 +13,12 @@ NAME=$2
 REGION=$3
 ZONE=$4
 
+# if kubernetes context already exists, delete it
+if kubectl config get-contexts ${NAME} > /dev/null 2>&1; then
+  log "Deleting existing kubernetes context ${NAME}"
+  kubectl config delete-context ${NAME}
+fi
+
 # USAGE
 if [ -z "$1" -o -z "$2" ]; then
   echo "Usage: $0 <KinD instance number> <kind cluster name>"
@@ -64,21 +70,33 @@ kubeadmConfigPatches:
         node-labels: "ingress-ready=true,topology.kubernetes.io/region=${REGION},topology.kubernetes.io/zone=${ZONE}"
 containerdConfigPatches:
 - |-
-  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
-    endpoint = ["http://${DOCKERIO_CACHE_NAME}:${DOCKERIO_CACHE_PORT}"]
-  [plugins."io.containerd.grpc.v1.cri".registry.configs."docker.io".tls]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."${LOCALHOST_LOCAL_URL_ALIAS}"]
+    endpoint = ["http://${LOCALHOST_CACHE_NAME}:${LOCALHOST_CACHE_PORT}"]
+  [plugins."io.containerd.grpc.v1.cri".registry.configs."${LOCALHOST_LOCAL_URL_ALIAS}".tls]
     insecure_skip_verify = true
-  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."quay.io"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."${LOCALHOST_LOCAL_URL_ALIAS}:5000"]
+    endpoint = ["http://${LOCALHOST_CACHE_NAME}:${LOCALHOST_CACHE_PORT}"]
+  [plugins."io.containerd.grpc.v1.cri".registry.configs."${LOCALHOST_LOCAL_URL_ALIAS}:5000".tls]
+    insecure_skip_verify = true
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."${QUAYIO_LOCAL_URL_ALIAS}"]
     endpoint = ["http://${QUAYIO_CACHE_NAME}:${QUAYIO_CACHE_PORT}"]
-  [plugins."io.containerd.grpc.v1.cri".registry.configs."quay.io".tls]
+  [plugins."io.containerd.grpc.v1.cri".registry.configs."${QUAYIO_LOCAL_URL_ALIAS}".tls]
     insecure_skip_verify = true
-  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."gcr.io"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."${GCRIO_LOCAL_URL_ALIAS}"]
     endpoint = ["http://${GCRIO_CACHE_NAME}:${GCRIO_CACHE_PORT}"]
-  [plugins."io.containerd.grpc.v1.cri".registry.configs."gcr.io".tls]
+  [plugins."io.containerd.grpc.v1.cri".registry.configs."${GCRIO_LOCAL_URL_ALIAS}".tls]
     insecure_skip_verify = true
-  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."us-docker.pkg.dev"]
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."${DOCKERIO_LOCAL_URL_ALIAS}"]
+    endpoint = ["http://${DOCKERIO_CACHE_NAME}:${DOCKERIO_CACHE_PORT}"]
+  [plugins."io.containerd.grpc.v1.cri".registry.configs."${DOCKERIO_LOCAL_URL_ALIAS}".tls]
+    insecure_skip_verify = true
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."${USDOCKERPKGDEV_LOCAL_URL_ALIAS}"]
     endpoint = ["http://${USDOCKERPKGDEV_CACHE_NAME}:${USDOCKERPKGDEV_CACHE_PORT}"]
-  [plugins."io.containerd.grpc.v1.cri".registry.configs."us-docker.pkg.dev".tls]
+  [plugins."io.containerd.grpc.v1.cri".registry.configs."${USDOCKERPKGDEV_LOCAL_URL_ALIAS}".tls]
+    insecure_skip_verify = true
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."${USCENTRAL1DOCKERPKGDEV_LOCAL_URL_ALIAS}"]
+    endpoint = ["http://${USCENTRAL1DOCKERPKGDEV_CACHE_NAME}:${USCENTRAL1DOCKERPKGDEV_CACHE_PORT}"]
+  [plugins."io.containerd.grpc.v1.cri".registry.configs."${USCENTRAL1DOCKERPKGDEV_LOCAL_URL_ALIAS}".tls]
     insecure_skip_verify = true
 EOF
 
@@ -91,11 +109,14 @@ fi
 
 # KinD cluster
 log "Creating the KinD cluster with name ${NAME}"
-kind create cluster --config=${CLUSTER_CONFIG_FILE} --image kindest/node:${KIND_NODE_VERSION} --retain
+kind create cluster --config=${CLUSTER_CONFIG_FILE} --image kindest/node:${KIND_NODE_VERSION} --retain --name ${NAME}
 #kind export logs --name ${NAME}; kind delete cluster
 log "KinD cluster creation complete!"
 
-export CONTEXT_NAME="kind-${NAME}"
+# rename the kubernetes context 
+kubectl config rename-context "kind-${NAME}" "${NAME}"
+
+export CONTEXT_NAME="${NAME}"
 export SUBNET_PREFIX=`docker network inspect kind | jq -r '.[0].IPAM.Config[0].Subnet' | awk -F. '{print $1"."$2}'`
 
 # METALLB
@@ -126,6 +147,8 @@ kubectl --context ${CONTEXT_NAME} -n metallb-system wait pod --all --timeout=90s
 kubectl --context ${CONTEXT_NAME} -n metallb-system wait deploy controller --timeout=90s --for=condition=Available
 kubectl --context ${CONTEXT_NAME} -n metallb-system wait apiservice v1beta1.metallb.io --timeout=90s --for=condition=Available
 
+sleep 5
+
 log "Configuring MetalLB (with Layer 2)"
 cat << EOF > ${METALLB_CONFIG_FILE}
 apiVersion: metallb.io/v1beta1
@@ -143,17 +166,22 @@ metadata:
   name: kind-l2
   namespace: metallb-system
 EOF
-log "file ${METALLB_CONFIG_FILE} created"
 
+log "Applying file ${METALLB_CONFIG_FILE}"
 kubectl --context ${CONTEXT_NAME} apply -f ${METALLB_CONFIG_FILE}
 
+log "Configuring local registry"
+cat <<EOF | kubectl --context ${CONTEXT_NAME} apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: local-registry-hosting
+  namespace: kube-public
+data:
+  localRegistryHosting.v1: |
+    host: "${LOCALHOST_CACHE_NAME}:5000"
+    help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
+EOF
 
-## Registries
-log "Configuring image registry mirrors"
-exec ${LIMA_WORKDIR}/lima/17-docker-registries.sh
-log "Registries configured and attached to local Kind bridge"
 
 log "End of script"
-
-
-

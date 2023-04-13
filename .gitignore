@@ -5,3 +5,4 @@ share/
 *.cast
 credentials.json
 *.key
+registries

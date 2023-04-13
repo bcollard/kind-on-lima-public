@@ -125,3 +125,10 @@ make kind-delete 1-istio
 # delete all kind clusters with:
 make kind-delete-all
 ```
+
+
+== History and WIP
+
+* 2021: Lima v0.8 + QEMU + MetalLB
+* 2022: Lima v0.10 + QEMU + MetalLB + registry mirrors + offline mode bootstrap
+* 2023: Lima v0.15 + VZ + Cilium CNI + registry mirrors + offline bootstrap + KinD worker nodes

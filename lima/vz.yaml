@@ -65,7 +65,7 @@ provision:
       export DEBIAN_FRONTEND=noninteractive
       curl -fsSL https://get.docker.com | sh
       apt-get install -y net-tools traceroute arping jq
-
+      echo -e "172.18.0.1\tkind-registry" >>/etc/hosts
 probes:
   - script: |
       #!/bin/bash
@@ -83,6 +83,8 @@ probes:
 portForwards:
   - guestSocket: "/run/docker.sock"
     hostSocket: "{{.Home}}/docker.sock"
+  - guestPort: 5000
+    hostPort: 5000
 
 hostResolver:
   # hostResolver.hosts requires lima 0.8.3 or later. Names defined here will also

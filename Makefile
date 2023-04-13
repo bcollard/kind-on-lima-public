@@ -92,3 +92,5 @@ registries-stop: ## stop the registries
 prepare-mac-host: ## create the lima workdir and save common images to the work dir
 	@./macos-setup/05-prepare-mac-host.sh
 
+rename-contexts-workshop: ## rename the contexts of the kind clusters to match the workshop
+	@./kind/24-rename-contexts-workshop.sh

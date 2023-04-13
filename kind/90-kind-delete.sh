@@ -12,3 +12,4 @@ if ! kind get clusters | grep -q $1; then
 fi
 
 kind delete cluster --name $1
+kubectl config delete-context $1

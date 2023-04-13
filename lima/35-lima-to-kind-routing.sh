@@ -35,11 +35,14 @@ SRC_IP_F3B=$(ip -o -4 a s | grep ${HOST_IF} | grep -E -o 'inet [0-9]{1,3}\.[0-9]
 SRC_IP_GW=${SRC_IP_F3B}.1
 DST_NET=172.18.0.0/16
 
+# clean
+sudo iptables -t filter -D FORWARD -4 -p tcp -s ${SRC_IP} -d ${DST_NET} -j ACCEPT -i ${HOST_IF} -o ${KIND_IF} || true
+sudo iptables -t filter -D FORWARD -4 -p tcp -s ${SRC_IP_GW} -d ${DST_NET} -j ACCEPT -i ${HOST_IF} -o ${KIND_IF} || true
+
+# add
 sudo iptables -t filter -A FORWARD -4 -p tcp -s ${SRC_IP} -d ${DST_NET} -j ACCEPT -i ${HOST_IF} -o ${KIND_IF}
 sudo iptables -t filter -A FORWARD -4 -p tcp -s ${SRC_IP_GW} -d ${DST_NET} -j ACCEPT -i ${HOST_IF} -o ${KIND_IF}
 sudo iptables -L
 
-# remove ip forward from Host to KinD
-# sudo iptables -t filter -D FORWARD -4 -p tcp -s ${SRC_IP} -d ${DST_NET} -j ACCEPT -i ${HOST_IF} -o ${KIND_IF}
 
 # get the first three bytes of the IP address

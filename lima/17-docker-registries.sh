@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 KIND_HOME_DIR=${HOME}/.kube/kind
 mkdir -p ${KIND_HOME_DIR}
 
@@ -9,39 +10,34 @@ if [ ${registry_img_loaded} -ne 1 ]; then
   docker load < ${LIMA_DATA_DIR}/distribution-distribution-2.8.1.tar
 fi
 
-DOCKERIO_CACHE_PORT='5030'
-DOCKERIO_CACHE_RUNNING="$(docker inspect -f '{{.State.Running}}' "${DOCKERIO_CACHE_NAME}" 2>/dev/null || true)"
-QUAYIO_CACHE_PORT='5010'
-QUAYIO_CACHE_RUNNING="$(docker inspect -f '{{.State.Running}}' "${QUAYIO_CACHE_NAME}" 2>/dev/null || true)"
-GCRIO_CACHE_PORT='5020'
-GCRIO_CACHE_RUNNING="$(docker inspect -f '{{.State.Running}}' "${GCRIO_CACHE_NAME}" 2>/dev/null || true)"
-USDOCKERPKGDEV_CACHE_PORT='5040'
-USDOCKERPKGDEV_CACHE_RUNNING="$(docker inspect -f '{{.State.Running}}' "${USDOCKERPKGDEV_CACHE_NAME}" 2>/dev/null || true)"
+# the gang of four... or more
+cat > registries <<EOF
+${DOCKERIO_CACHE_NAME} ${DOCKERIO_CACHE_PORT} ${DOCKERIO_REMOTE_URL} ${DOCKERIO_CACHE_DIR} ${DOCKERIO_LOCAL_URL_ALIAS}
+${QUAYIO_CACHE_NAME} ${QUAYIO_CACHE_PORT} ${QUAYIO_REMOTE_URL} ${QUAYIO_CACHE_DIR} ${QUAYIO_LOCAL_URL_ALIAS}
+${GCRIO_CACHE_NAME} ${GCRIO_CACHE_PORT} ${GCRIO_REMOTE_URL} ${GCRIO_CACHE_DIR} ${GCRIO_LOCAL_URL_ALIAS}
+${USDOCKERPKGDEV_CACHE_NAME} ${USDOCKERPKGDEV_CACHE_PORT} ${USDOCKERPKGDEV_REMOTE_URL} ${USDOCKERPKGDEV_CACHE_DIR} ${USDOCKERPKGDEV_LOCAL_URL_ALIAS}
+${USCENTRAL1DOCKERPKGDEV_CACHE_NAME} ${USCENTRAL1DOCKERPKGDEV_CACHE_PORT} ${USCENTRAL1DOCKERPKGDEV_REMOTE_URL} ${USCENTRAL1DOCKERPKGDEV_CACHE_DIR} ${USCENTRAL1DOCKERPKGDEV_LOCAL_URL_ALIAS}
+EOF
 
-# clean stopped containers
-if [ "${DOCKERIO_CACHE_RUNNING}" = "false" ]; then
-  echo "Removing stopped container ${DOCKERIO_CACHE_NAME}"
-  docker rm -f "${DOCKERIO_CACHE_NAME}" 2>/dev/null || true
-fi
-if [ "${QUAYIO_CACHE_RUNNING}" = "false" ]; then
-  echo "Removing stopped container ${QUAYIO_CACHE_NAME}"
-  docker rm -f "${QUAYIO_CACHE_NAME}" 2>/dev/null || true
-fi
-if [ "${GCRIO_CACHE_RUNNING}" = "false" ]; then
-  echo "Removing stopped container ${GCRIO_CACHE_NAME}"
-  docker rm -f "${GCRIO_CACHE_NAME}" 2>/dev/null || true
-fi
-if [ "${USDOCKERPKGDEV_CACHE_RUNNING}" = "false" ]; then
-  echo "Removing stopped container ${USDOCKERPKGDEV_CACHE_NAME}"
-  docker rm -f "${USDOCKERPKGDEV_CACHE_NAME}" 2>/dev/null || true
+
+# THE LOOP
+cat registries | while read cache_name cache_port cache_remote_url cache_dir cache_local_url_alias; do
+
+# is the docker cache running?
+IS_CACHE_RUNNING="$(docker inspect -f '{{.State.Running}}' "${cache_name}" 2>/dev/null || true)"
+
+# remove the container if stopped
+if [ "${IS_CACHE_RUNNING}" = "false" ]; then
+  echo "Removing stopped container ${cache_name}"
+  docker rm -f "${cache_name}" 2>/dev/null || true
 fi
 
-# docker.io mirror
-if [[ -z "${DOCKERIO_CACHE_RUNNING}" || "${DOCKERIO_CACHE_RUNNING}" = "false" ]] ; then
-  cat > ${KIND_HOME_DIR}/dockerio-cache-config.yml <<EOF
+# start the container if not running
+if [[ -z "${IS_CACHE_RUNNING}" || "${IS_CACHE_RUNNING}" = "false" ]] ; then
+  cat > ${KIND_HOME_DIR}/${cache_name}-cache-config.yml <<EOF
 version: 0.1
 proxy:
-  remoteurl: https://registry-1.docker.io
+  remoteurl: ${cache_remote_url}
 log:
   fields:
     service: registry
@@ -51,7 +47,7 @@ storage:
   filesystem:
     rootdirectory: /var/lib/registry
 http:
-  addr: :${DOCKERIO_CACHE_PORT}
+  addr: :${cache_port}
   headers:
     X-Content-Type-Options: [nosniff]
 health:
@@ -60,106 +56,35 @@ health:
     interval: 10s
     threshold: 3
 EOF
-  echo "Starting docker.io mirror"
+  echo "Starting ${cache_name} mirror"
   docker run \
-    -d --restart=always -v ${KIND_HOME_DIR}/dockerio-cache-config.yml:/etc/docker/registry/config.yml -p ${DOCKERIO_CACHE_PORT}:${DOCKERIO_CACHE_PORT} \
-    -v ${DOCKERIO_CACHE_DIR}:/var/lib/registry --name "${DOCKERIO_CACHE_NAME}" \
+    -d --restart=always -v ${KIND_HOME_DIR}/${cache_name}-cache-config.yml:/etc/docker/registry/config.yml -p "${cache_port}:${cache_port}" \
+    -v ${cache_dir}:/var/lib/registry --name "${cache_name}" \
+    ${REGISTRY_IMAGE_TAG}
+
+fi
+
+# Connect the cache to the kind docker network
+echo "Updating the 'kind' network with the ${cache_name} docker registry"
+docker network connect kind ${cache_name} 2>/dev/null || true
+
+done
+# END OF LOOP
+
+
+# LOCALHOST CACHE
+reg_name="${LOCALHOST_CACHE_NAME}"
+reg_port="${LOCALHOST_CACHE_PORT}"
+running="$(docker inspect -f '{{.State.Running}}' "${reg_name}" 2>/dev/null || true)"
+if [ "${running}" = "false" ]; then
+  echo "Removing stopped container ${reg_name}"
+  docker rm -f "${reg_name}" 2>/dev/null || true
+fi
+if [[ -z "${running}" || "${running}" = "false" ]] ; then
+  docker run \
+    -d --restart=always -p "0.0.0.0:${reg_port}:${reg_port}" --name "${reg_name}" \
     ${REGISTRY_IMAGE_TAG}
 fi
-# quay.io mirror
-if [[ -z "${QUAYIO_CACHE_RUNNING}" || "${QUAYIO_CACHE_RUNNING}" = "false" ]] ; then
-  cat > ${KIND_HOME_DIR}/quayio-cache-config.yml <<EOF
-version: 0.1
-proxy:
-  remoteurl: https://quay.io
-log:
-  fields:
-    service: registry
-storage:
-  cache:
-    blobdescriptor: inmemory
-  filesystem:
-    rootdirectory: /var/lib/registry
-http:
-  addr: :${QUAYIO_CACHE_PORT}
-  headers:
-    X-Content-Type-Options: [nosniff]
-health:
-  storagedriver:
-    enabled: true
-    interval: 10s
-    threshold: 3
-EOF
-  echo "Starting quay.io mirror"
-  docker run \
-    -d --restart=always -v ${KIND_HOME_DIR}/quayio-cache-config.yml:/etc/docker/registry/config.yml -p ${QUAYIO_CACHE_PORT}:${QUAYIO_CACHE_PORT} \
-    -v ${QUAYIO_CACHE_DIR}:/var/lib/registry --name "${QUAYIO_CACHE_NAME}" \
-    ${REGISTRY_IMAGE_TAG} 
-fi
-# gcr.io mirror
-if [[ -z "${GCRIO_CACHE_RUNNING}" || "${GCRIO_CACHE_RUNNING}" = "false" ]] ; then
-  cat > ${KIND_HOME_DIR}/gcrio-cache-config.yml <<EOF
-version: 0.1
-proxy:
-  remoteurl: https://gcr.io
-log:
-  fields:
-    service: registry
-storage:
-  cache:
-    blobdescriptor: inmemory
-  filesystem:
-    rootdirectory: /var/lib/registry
-http:
-  addr: :${GCRIO_CACHE_PORT}
-  headers:
-    X-Content-Type-Options: [nosniff]
-health:
-  storagedriver:
-    enabled: true
-    interval: 10s
-    threshold: 3
-EOF
-  echo "Starting gcr.io mirror"
-  docker run \
-    -d --restart=always -v ${KIND_HOME_DIR}/gcrio-cache-config.yml:/etc/docker/registry/config.yml -p ${GCRIO_CACHE_PORT}:${GCRIO_CACHE_PORT} \
-    -v ${GCRIO_CACHE_DIR}:/var/lib/registry --name "${GCRIO_CACHE_NAME}" \
-    ${REGISTRY_IMAGE_TAG} 
-fi
-# us-docker.pkg.dev mirror
-if [[ -z "${USDOCKERPKGDEV_CACHE_RUNNING}" || "${USDOCKERPKGDEV_CACHE_RUNNING}" = "false" ]] ; then
-  cat > ${KIND_HOME_DIR}/us-docker.pkg.dev-cache-config.yml <<EOF
-version: 0.1
-proxy:
-  remoteurl: https://us-docker.pkg.dev
-log:
-  fields:
-    service: registry
-storage:
-  cache:
-    blobdescriptor: inmemory
-  filesystem:
-    rootdirectory: /var/lib/registry
-http:
-  addr: :${USDOCKERPKGDEV_CACHE_PORT}
-  headers:
-    X-Content-Type-Options: [nosniff]
-health:
-  storagedriver:
-    enabled: true
-    interval: 10s
-    threshold: 3
-EOF
-  echo "Starting us-docker.pkg.dev mirror"
-  docker run \
-    -d --restart=always -v ${KIND_HOME_DIR}/us-docker.pkg.dev-cache-config.yml:/etc/docker/registry/config.yml -p ${USDOCKERPKGDEV_CACHE_PORT}:${USDOCKERPKGDEV_CACHE_PORT} \
-    -v ${USDOCKERPKGDEV_CACHE_DIR}:/var/lib/registry --name "${USDOCKERPKGDEV_CACHE_NAME}" \
-    ${REGISTRY_IMAGE_TAG} 
-fi
 
-# NETWORK SETUP FOR DOCKER REGISTRIES
-echo "Setting up the network for the docker registries"
-docker network connect kind ${DOCKERIO_CACHE_NAME} 2>/dev/null || true
-docker network connect kind ${QUAYIO_CACHE_NAME} 2>/dev/null || true
-docker network connect kind ${GCRIO_CACHE_NAME} 2>/dev/null || true
-docker network connect kind ${USDOCKERPKGDEV_CACHE_NAME} 2>/dev/null || true
+docker network connect kind ${reg_name} 2>/dev/null || true
+
