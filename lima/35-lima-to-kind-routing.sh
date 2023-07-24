@@ -13,6 +13,7 @@
 
 # # show net if addresses
 # ip -d address
+# sudo lshw -class network
 
 # # get IP addr on the lima0 interface
 # ip -o -4 a s | grep lima0 | grep -E -o 'inet [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | cut -d' ' -f2
@@ -45,4 +46,5 @@ sudo iptables -t filter -A FORWARD -4 -p tcp -s ${SRC_IP_GW} -d ${DST_NET} -j AC
 sudo iptables -L
 
 
-# get the first three bytes of the IP address
+ip -o a s dev lima0
+

@@ -13,10 +13,21 @@ Download and install the following tools:
 - https://baptistout.net/posts/kubernetes-clusters-on-macos-with-loadbalancer-without-docker-desktop/#_setup_part_3_the_docker_cli[docker CLI] (not docker desktop, just the CLI) -> `brew install docker`
 - **Only for Apple Silicon Mac (M1/M2)**: install Rosetta -> `softwareupdate --install-rosetta --agree-to-license`
 
+=== Additional tools
+softwareupdate --install-rosetta
+xcode-select --install
 
 == Getting started
 
-First, take a look at the environment variables in `.envrc` and change the value of `LIMA_WORKDIR` to the path of the cloned repo on your machine.
+=== Clone this repo
+First, clone the repo:
+
+```bash
+git clone git@github.com:bcollard/kind-on-lima-public.git
+cd kind-on-lima
+```
+
+Take a look at the environment variables in `.envrc` and change the value of `LIMA_WORKDIR` to the path of the cloned repo on your machine.
 
 Initialize the env vars for this directory:
 
@@ -88,6 +99,12 @@ make config-network-end-to-end
 ```
 
 Run this command everytime you restart the Lima VM.
+
+=== Prepare the docker images
+
+```bash
+make prepare-docker-images
+```
 
 === Spin up a new KinD cluster
 ```bash

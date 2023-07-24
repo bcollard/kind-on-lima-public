@@ -1,18 +1,19 @@
+# lima workdirs
+# test if ${LIMA_HOME} exists
+if [ ! -d "${LIMA_HOME}" ]; then
+  mkdir ${LIMA_HOME}
+fi
+# test if ${LIMA_WORKDIR} exists
+if [ ! -d "${LIMA_WORKDIR}" ]; then
+  mkdir ${LIMA_WORKDIR}
+fi
+
 # docker work dir and cache dirs
-sudo mkdir ${LIMA_DATA_DIR}
+if [ ! -d "${LIMA_DATA_DIR}" ]; then
+  sudo mkdir ${LIMA_DATA_DIR}
+fi
 sudo chown $(whoami) ${LIMA_DATA_DIR}
-sudo mkdir ${GCRIO_CACHE_DIR} ${QUAYIO_CACHE_DIR} ${DOCKERIO_CACHE_DIR} ${USDOCKERPKGDEV_CACHE_DIR}
+sudo mkdir ${LOCALHOST_CACHE_DIR} ${GCRIO_CACHE_DIR} ${QUAYIO_CACHE_DIR} ${DOCKERIO_CACHE_DIR} ${USDOCKERPKGDEV_CACHE_DIR} ${USCENTRAL1DOCKERPKGDEV_CACHE_DIR}
 
-# pull images
-docker pull distribution/distribution:2.8.1
-docker pull quay.io/metallb/controller:v0.11.0
-docker pull quay.io/metallb/speaker:v0.11.0
-docker pull kindest/node:${KIND_NODE_VERSION}
-
-# save images
-docker save distribution/distribution:2.8.1 > ${LIMA_DATA_DIR}/distribution-distribution-2.8.1.tar
-docker save quay.io/metallb/controller:v0.11.0 > ${LIMA_DATA_DIR}/quay.io-metallb-controller-v0.11.0.tar
-docker save quay.io/metallb/speaker:v0.11.0 > ${LIMA_DATA_DIR}/quay.io-metallb-speaker-v0.11.0.tar
-docker save kindest/node:${KIND_NODE_VERSION} > ${LIMA_DATA_DIR}/kind-${KIND_NODE_VERSION}-image.tar
 
 

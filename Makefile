@@ -13,6 +13,9 @@ dl-install-lima: ## download the provided Lima version (prompt) and install it i
 print-current-instance: ## show the current Lima instance (machine name)
 	@echo ${LIMA_INSTANCE}
 
+print-lima-version: ## show the current Lima version
+	@${LIMACTL_BIN} --version
+
 create: ## create the default Lima instance
 	@./lima/02-lima-create.sh; \
 	echo "now run: make config-network-end-to-end"
@@ -91,6 +94,9 @@ registries-stop: ## stop the registries
 
 prepare-mac-host: ## create the lima workdir and save common images to the work dir
 	@./macos-setup/05-prepare-mac-host.sh
+
+prepare-docker-images: ## save common images onto the VM (where the docker daemon is running)
+	@./lima/40-prepare-images.sh
 
 rename-contexts-workshop: ## rename the contexts of the kind clusters to match the workshop
 	@./kind/24-rename-contexts-workshop.sh
