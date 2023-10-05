@@ -7,7 +7,7 @@ mkdir -p ${KIND_HOME_DIR}
 registry_img_loaded=$(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep "${REGISTRY_IMAGE_TAG}" | wc -l)
 if [ ${registry_img_loaded} -ne 1 ]; then
   echo "Loading the ${REGISTRY_IMAGE_TAG} image into the VM..."
-  docker load < ${LIMA_DATA_DIR}/distribution-distribution-2.8.1.tar
+  docker load < ${LIMA_DATA_DIR}/distribution-distribution-2.8.3.tar
 fi
 
 # the gang of four... or more
