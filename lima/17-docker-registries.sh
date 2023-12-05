@@ -4,10 +4,10 @@ KIND_HOME_DIR=${HOME}/.kube/kind
 mkdir -p ${KIND_HOME_DIR}
 
 # DOCKER IMAGE CACHES ("registry v2" or "distribution:2.8.1")
-registry_img_loaded=$(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep "${REGISTRY_IMAGE_TAG}" | wc -l)
+registry_img_loaded=$(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep "${REGISTRY_IMAGE}:${REGISTRY_TAG}" | wc -l)
 if [ ${registry_img_loaded} -ne 1 ]; then
-  echo "Loading the ${REGISTRY_IMAGE_TAG} image into the VM..."
-  docker load < ${LIMA_DATA_DIR}/distribution-distribution-2.8.3.tar
+  echo "Loading the ${REGISTRY_IMAGE} image into the VM..."
+  docker load < ${LIMA_DATA_DIR}/distribution-distribution-${REGISTRY_TAG}.tar
 fi
 
 # the gang of four... or more
@@ -60,7 +60,7 @@ EOF
   docker run \
     -d --restart=always -v ${KIND_HOME_DIR}/${cache_name}-cache-config.yml:/etc/docker/registry/config.yml -p "${cache_port}:${cache_port}" \
     -v ${cache_dir}:/var/lib/registry --name "${cache_name}" \
-    ${REGISTRY_IMAGE_TAG}
+    ${REGISTRY_IMAGE}:${REGISTRY_TAG}
 
 fi
 
@@ -83,7 +83,7 @@ fi
 if [[ -z "${running}" || "${running}" = "false" ]] ; then
   docker run \
     -d --restart=always -p "0.0.0.0:${reg_port}:${reg_port}" --name "${reg_name}" \
-    ${REGISTRY_IMAGE_TAG}
+    ${REGISTRY_IMAGE}:${REGISTRY_TAG}
 fi
 
 docker network connect kind ${reg_name} 2>/dev/null || true
