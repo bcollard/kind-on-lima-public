@@ -90,6 +90,16 @@ containerdConfigPatches:
     endpoint = ["http://${DOCKERIO_CACHE_NAME}:${DOCKERIO_CACHE_PORT}"]
   [plugins."io.containerd.grpc.v1.cri".registry.configs."${DOCKERIO_LOCAL_URL_ALIAS}".tls]
     insecure_skip_verify = true
+  [plugins."io.containerd.grpc.v1.cri".registry.configs."${DOCKERIO_LOCAL_URL_ALIAS}".auth]
+    username = "${DOCKERHUB_USERNAME}"
+    password = "${DOCKERHUB_PASSWORD}"
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."${DOCKERIO_REG1_LOCAL_URL_ALIAS}"]
+    endpoint = ["http://${DOCKERIO_REG1_CACHE_NAME}:${DOCKERIO_REG1_CACHE_PORT}"]
+  [plugins."io.containerd.grpc.v1.cri".registry.configs."${DOCKERIO_REG1_LOCAL_URL_ALIAS}".tls]
+    insecure_skip_verify = true
+  [plugins."io.containerd.grpc.v1.cri".registry.configs."${DOCKERIO_REG1_LOCAL_URL_ALIAS}".auth]
+    username = "${DOCKERHUB_USERNAME}"
+    password = "${DOCKERHUB_PASSWORD}"
   [plugins."io.containerd.grpc.v1.cri".registry.mirrors."${USDOCKERPKGDEV_LOCAL_URL_ALIAS}"]
     endpoint = ["http://${USDOCKERPKGDEV_CACHE_NAME}:${USDOCKERPKGDEV_CACHE_PORT}"]
   [plugins."io.containerd.grpc.v1.cri".registry.configs."${USDOCKERPKGDEV_LOCAL_URL_ALIAS}".tls]

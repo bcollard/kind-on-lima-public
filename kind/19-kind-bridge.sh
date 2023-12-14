@@ -12,6 +12,7 @@ docker network create \
 
 echo "Configuring the 'kind' network with the docker registries"
 docker network connect kind ${DOCKERIO_CACHE_NAME} 2>/dev/null || true
+docker network connect kind ${DOCKERIO_REG1_CACHE_NAME} 2>/dev/null || true
 docker network connect kind ${QUAYIO_CACHE_NAME} 2>/dev/null || true
 docker network connect kind ${GCRIO_CACHE_NAME} 2>/dev/null || true
 docker network connect kind ${USDOCKERPKGDEV_CACHE_NAME} 2>/dev/null || true
