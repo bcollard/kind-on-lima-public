@@ -3,6 +3,8 @@
 # run on Lima shell
 ##########
 
+echo "Starting script 35-lima-to-kind-routing.sh"
+
 # # view routes
 # ip route
 # route
@@ -36,15 +38,20 @@ SRC_IP_F3B=$(ip -o -4 a s | grep ${HOST_IF} | grep -E -o 'inet [0-9]{1,3}\.[0-9]
 SRC_IP_GW=${SRC_IP_F3B}.1
 DST_NET=172.18.0.0/16
 
+echo "showing the route to the Kind network"
+ip -o a s dev ${HOST_IF}
+
 # clean
 #sudo iptables -t filter -D FORWARD -4 -p tcp -s ${SRC_IP} -d ${DST_NET} -j ACCEPT -i ${HOST_IF} -o ${KIND_IF} || true
-sudo iptables -t filter -D FORWARD -4 -p tcp -s ${SRC_IP_GW} -d ${DST_NET} -j ACCEPT -i ${HOST_IF} -o ${KIND_IF} || true
+echo "Cleaning the iptables rules"
+sudo iptables -vv -t filter -D FORWARD -4 -p tcp -s ${SRC_IP_GW} -d ${DST_NET} -j ACCEPT -i ${HOST_IF} -o ${KIND_IF} || true
 
 # add
 #sudo iptables -t filter -A FORWARD -4 -p tcp -s ${SRC_IP} -d ${DST_NET} -j ACCEPT -i ${HOST_IF} -o ${KIND_IF}
-sudo iptables -t filter -A FORWARD -4 -p tcp -s ${SRC_IP_GW} -d ${DST_NET} -j ACCEPT -i ${HOST_IF} -o ${KIND_IF}
+echo "Adding the iptables rules"
+sudo iptables -vv -t filter -A FORWARD -4 -p tcp -s ${SRC_IP_GW} -d ${DST_NET} -j ACCEPT -i ${HOST_IF} -o ${KIND_IF}
+
+echo "Listing the iptables rules"
 sudo iptables -L
 
-
-ip -o a s dev lima0
-
+echo "Script 35-lima-to-kind-routing.sh completed."

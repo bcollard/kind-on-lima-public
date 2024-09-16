@@ -43,7 +43,10 @@ kind-create: ## create a new kind cluster. Usage: make kind-create <id> <name>
 	@./kind/20-kind-create.sh $(filter-out $@,$(MAKECMDGOALS))
 
 kind-create-triple: ## create three clusters named after Gloo Platform typical arch
-	@./kind/22-kind-create-triple.sh
+	@./kind/22-kind-create-triple.sh $(filter-out $@,$(MAKECMDGOALS))
+
+kind-create-cagip: ## create a cluster named after CAGIP typical arch
+	@./kind/24-kind-create-cagip.sh
 
 kind-create-three: kind-create-triple
 

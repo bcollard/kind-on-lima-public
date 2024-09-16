@@ -33,14 +33,22 @@ if [ "${IS_CACHE_RUNNING}" = "false" ]; then
   docker rm -f "${cache_name}" 2>/dev/null || true
 fi
 
+# config ref: https://distribution.github.io/distribution/about/configuration/
 # start the container if not running
 if [[ -z "${IS_CACHE_RUNNING}" || "${IS_CACHE_RUNNING}" = "false" ]] ; then
   cat > ${KIND_HOME_DIR}/${cache_name}-cache-config.yml <<EOF
 version: 0.1
 proxy:
   remoteurl: ${cache_remote_url}
+EOF
+  # if ${cache_name} contains "registry-dockerio" then add auth
+  if [[ "${cache_name}" == "${DOCKERIO_CACHE_NAME}" ]]; then
+    cat >> ${KIND_HOME_DIR}/${cache_name}-cache-config.yml <<EOF
   username: ${DOCKERHUB_USERNAME}
   password: ${DOCKERHUB_PASSWORD}
+EOF
+  fi
+  cat >> ${KIND_HOME_DIR}/${cache_name}-cache-config.yml <<EOF
 log:
   fields:
     service: registry

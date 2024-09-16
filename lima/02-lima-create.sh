@@ -20,7 +20,7 @@ if [ $arch == "arm64" ]; then
 fi
 
 # limactl start ./03-docker.yaml
-${LIMACTL_BIN} start ./lima/${LIMA_INSTANCE}.yaml --tty=false --name ${LIMA_INSTANCE}
+${LIMACTL_BIN} start ./lima/${LIMA_INSTANCE}.yaml --tty=false --name ${LIMA_INSTANCE} --log-level=debug
 
 if [ $arch == "arm64" ] && [ $LIMA_INSTANCE == "docker" ]; then
     ${LIMA_BIN} sudo nerdctl run --privileged --rm tonistiigi/binfmt --install all

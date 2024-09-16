@@ -168,7 +168,8 @@ metadata:
   namespace: metallb-system
 spec:
   addresses:
-  - ${SUBNET_PREFIX}.${NUM}.1-${SUBNET_PREFIX}.${NUM}.254
+  - ${SUBNET_PREFIX}.${NUM}.1-${SUBNET_PREFIX}.${NUM}.7
+  - ${SUBNET_PREFIX}.${NUM}.16-${SUBNET_PREFIX}.${NUM}.254
 ---
 apiVersion: metallb.io/v1beta1
 kind: L2Advertisement
