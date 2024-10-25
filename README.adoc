@@ -12,6 +12,7 @@ Download and install the following tools:
 - https://direnv.net/[direnv] -> `brew install direnv`
 - https://baptistout.net/posts/kubernetes-clusters-on-macos-with-loadbalancer-without-docker-desktop/#_setup_part_3_the_docker_cli[docker CLI] (not docker desktop, just the CLI) -> `brew install docker`
 - **Only for Apple Silicon Mac (M1/M2)**: install Rosetta -> `softwareupdate --install-rosetta --agree-to-license`
+- Install the `konfig` plugin for kubectl -> `kubectl krew install konfig`
 
 === Additional tools
 softwareupdate --install-rosetta

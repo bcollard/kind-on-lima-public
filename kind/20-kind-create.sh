@@ -13,12 +13,6 @@ NAME=$2
 REGION=$3
 ZONE=$4
 
-# if kubernetes context already exists, delete it
-if kubectl config get-contexts ${NAME} > /dev/null 2>&1; then
-  log "Deleting existing kubernetes context ${NAME}"
-  kubectl config delete-context ${NAME}
-fi
-
 # USAGE
 if [ -z "$1" -o -z "$2" ]; then
   echo "Usage: $0 <KinD instance number> <kind cluster name>"
@@ -33,12 +27,22 @@ fi
 if [ -z "$4" ]; then
   ZONE=europe-west1-b
 fi
+
+# if kubernetes context already exists, delete it
+if kubectl config get-contexts ${NAME} > /dev/null 2>&1; then
+  log "Deleting existing kubernetes context ${NAME}"
+  kubectl config delete-context ${NAME}
+fi
+
+# let
 TWO_DIGITS=$(printf "%02d\n" ${NUM})
 KIND_HOME_DIR=${HOME}/.kube/kind
-CLUSTER_CONFIG_FILE=${KIND_HOME_DIR}/$NAME.yaml
-METALLB_CONFIG_FILE=${KIND_HOME_DIR}/$NAME-metallb.yaml
+KUBE_CONFIG_FILE=${KIND_HOME_DIR}/${NAME}.kubeconfig
+CLUSTER_CONFIG_FILE=${KIND_HOME_DIR}/${NAME}.yaml
+METALLB_CONFIG_FILE=${KIND_HOME_DIR}/${NAME}-metallb.yaml
 
 # PREP
+rm -v ${KUBE_CONFIG_FILE} || true
 rm -v ${CLUSTER_CONFIG_FILE} || true
 rm -v ${METALLB_CONFIG_FILE} || true
 
@@ -119,12 +123,12 @@ fi
 
 # KinD cluster
 log "Creating the KinD cluster with name ${NAME}"
-kind create cluster --config=${CLUSTER_CONFIG_FILE} --image kindest/node:${KIND_NODE_VERSION} --retain --name ${NAME}
+kind create cluster --config=${CLUSTER_CONFIG_FILE} --image kindest/node:${KIND_NODE_VERSION} --retain --name ${NAME} --kubeconfig ${KUBE_CONFIG_FILE}
 #kind export logs --name ${NAME}; kind delete cluster
 log "KinD cluster creation complete!"
 
 # rename the kubernetes context 
-kubectl config rename-context "kind-${NAME}" "${NAME}"
+kubectl --kubeconfig ${KUBE_CONFIG_FILE} config rename-context "kind-${NAME}" "${NAME}"
 
 export CONTEXT_NAME="${NAME}"
 export SUBNET_PREFIX=`docker network inspect kind | jq -r '.[0].IPAM.Config[0].Subnet' | awk -F. '{print $1"."$2}'`
@@ -145,17 +149,17 @@ kind load image-archive ${LIMA_DATA_DIR}/quay.io-metallb-speaker-${METALLB_VERSI
 kind load image-archive ${LIMA_DATA_DIR}/quay.io-frrouting-frr-7.5.1.tar --name ${NAME}
 
 log "Installing MetalLB"
-# kubectl --context ${CONTEXT_NAME} apply -f ${LIMA_WORKDIR}/metallb/namespace.yaml
-# kubectl --context ${CONTEXT_NAME} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)" 
-# kubectl --context ${CONTEXT_NAME} apply -f ${LIMA_WORKDIR}/metallb/metallb.yaml
+# kubectl --kubeconfig ${KUBE_CONFIG_FILE} --context ${CONTEXT_NAME} apply -f ${LIMA_WORKDIR}/metallb/namespace.yaml
+# kubectl --kubeconfig ${KUBE_CONFIG_FILE} --context ${CONTEXT_NAME} create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)" 
+# kubectl --kubeconfig ${KUBE_CONFIG_FILE} --context ${CONTEXT_NAME} apply -f ${LIMA_WORKDIR}/metallb/metallb.yaml
 ## # https://raw.githubusercontent.com/metallb/metallb/${METALLB_VERSION}/config/manifests/metallb-native.yaml
 ## # https://raw.githubusercontent.com/metallb/metallb/${METALLB_VERSION}/config/manifests/metallb-frr.yaml
-kubectl --context ${CONTEXT_NAME} apply -f ${LIMA_WORKDIR}/metallb/metallb-native-v0.13.9.yaml
-kubectl --context ${CONTEXT_NAME} apply -f ${LIMA_WORKDIR}/metallb/metallb-frr-v0.13.9.yaml
+kubectl --kubeconfig ${KUBE_CONFIG_FILE} --context ${CONTEXT_NAME} apply -f ${LIMA_WORKDIR}/metallb/metallb-native-${METALLB_VERSION}.yaml
+kubectl --kubeconfig ${KUBE_CONFIG_FILE} --context ${CONTEXT_NAME} apply -f ${LIMA_WORKDIR}/metallb/metallb-frr-${METALLB_VERSION}.yaml
 
-kubectl --context ${CONTEXT_NAME} -n metallb-system wait pod --all --timeout=90s --for=condition=Ready
-kubectl --context ${CONTEXT_NAME} -n metallb-system wait deploy controller --timeout=90s --for=condition=Available
-kubectl --context ${CONTEXT_NAME} -n metallb-system wait apiservice v1beta1.metallb.io --timeout=90s --for=condition=Available
+kubectl --kubeconfig ${KUBE_CONFIG_FILE} --context ${CONTEXT_NAME} -n metallb-system wait pod --all --timeout=90s --for=condition=Ready
+kubectl --kubeconfig ${KUBE_CONFIG_FILE} --context ${CONTEXT_NAME} -n metallb-system wait deploy controller --timeout=90s --for=condition=Available
+kubectl --kubeconfig ${KUBE_CONFIG_FILE} --context ${CONTEXT_NAME} -n metallb-system wait apiservice v1beta1.metallb.io --timeout=90s --for=condition=Available
 
 sleep 5
 
@@ -179,10 +183,10 @@ metadata:
 EOF
 
 log "Applying file ${METALLB_CONFIG_FILE}"
-kubectl --context ${CONTEXT_NAME} apply -f ${METALLB_CONFIG_FILE}
+kubectl --kubeconfig ${KUBE_CONFIG_FILE} --context ${CONTEXT_NAME} apply -f ${METALLB_CONFIG_FILE}
 
 log "Configuring local registry"
-cat <<EOF | kubectl --context ${CONTEXT_NAME} apply -f -
+cat <<EOF | kubectl --kubeconfig ${KUBE_CONFIG_FILE} --context ${CONTEXT_NAME} apply -f -
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -194,5 +198,14 @@ data:
     help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
 EOF
 
+# sleep random time
+sleep $((1 + RANDOM % 10))
+
+# kubeconfig merging
+log "Importing the new kubeconfig file at ${KUBE_CONFIG_FILE}"
+kubectl konfig import -s ${KUBE_CONFIG_FILE}
+
+log "Imported OK"
+kubectl config view # -minify --flatten --context ${NAME} > ${KUBE_CONFIG_FILE}
 
 log "End of script"
