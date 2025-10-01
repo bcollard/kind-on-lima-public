@@ -19,7 +19,7 @@ if [ -z "$1" -o -z "$2" ]; then
   exit 1
 fi
 
-# VARS
+# FAKE LOCALITY SETTINGS
 if [ -z "$3" ]; then
   REGION=europe-west1
 fi
@@ -61,11 +61,13 @@ nodes:
   extraPortMappings:
   - containerPort: 6443
     hostPort: 70${TWO_DIGITS}
+    listenAddress: "127.0.0.1"
 # - role: worker
 # - role: worker
 networking:
   serviceSubnet: "10.${NUM}.0.0/16"
   podSubnet: "10.1${NUM}.0.0/16"
+  # apiServerAddress: 127.0.0.1
 kubeadmConfigPatches:
 - |
     kind: InitConfiguration

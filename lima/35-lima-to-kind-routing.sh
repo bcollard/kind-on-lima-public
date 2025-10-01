@@ -37,6 +37,17 @@ SRC_IP=$(ip -o -4 a s | grep ${HOST_IF} | grep -E -o 'inet [0-9]{1,3}\.[0-9]{1,3
 SRC_IP_F3B=$(ip -o -4 a s | grep ${HOST_IF} | grep -E -o 'inet [0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | cut -d' ' -f2 | cut -d'.' -f1-3)
 SRC_IP_GW=${SRC_IP_F3B}.1
 DST_NET=172.18.0.0/16
+echo "Variables used in the script, printed in the form a of table:"
+echo "Variable | Value"
+echo "---------|-----------------------------"
+echo "if_prefix | ${if_prefix}"
+echo "KIND_IF  | ${KIND_IF}"
+echo "HOST_IF  | ${HOST_IF}"
+echo "SRC_IP   | ${SRC_IP}"
+echo "SRC_IP_F3B | ${SRC_IP_F3B}"
+echo "SRC_IP_GW | ${SRC_IP_GW}"
+echo "DST_NET  | ${DST_NET}"
+
 
 echo "showing the route to the Kind network"
 ip -o a s dev ${HOST_IF}
@@ -44,14 +55,26 @@ ip -o a s dev ${HOST_IF}
 # clean
 #sudo iptables -t filter -D FORWARD -4 -p tcp -s ${SRC_IP} -d ${DST_NET} -j ACCEPT -i ${HOST_IF} -o ${KIND_IF} || true
 echo "Cleaning the iptables rules"
-sudo iptables -vv -t filter -D FORWARD -4 -p tcp -s ${SRC_IP_GW} -d ${DST_NET} -j ACCEPT -i ${HOST_IF} -o ${KIND_IF} || true
+sudo iptables -v -t filter -D DOCKER-USER -4 -p tcp -s ${SRC_IP_GW} -d ${DST_NET} -j ACCEPT -i ${HOST_IF} -o ${KIND_IF} || true
 
-# add
-#sudo iptables -t filter -A FORWARD -4 -p tcp -s ${SRC_IP} -d ${DST_NET} -j ACCEPT -i ${HOST_IF} -o ${KIND_IF}
+# add logs
+#echo "Adding logging to the iptables rules"
+#sudo iptables -v -t filter -I FORWARD 1 -4 -p tcp -s ${SRC_IP_GW} -d ${DST_NET} -j LOG --log-prefix "LIMA-KIND-FORWARD: " --log-level 4
+# delete it
+#sudo iptables -L FORWARD --line-numbers
+#sudo iptables -D FORWARD 3
+
+# add conntrack on the DOCKER-USER chain
+# https://docs.docker.com/engine/network/packet-filtering-firewalls/
+echo "Adding conntrack to the iptables rules"
+sudo iptables -v -t filter -I DOCKER-USER 1 -4 -p tcp -s ${SRC_IP_GW} -d ${DST_NET} -m conntrack --ctstate NEW,RELATED,ESTABLISHED -j ACCEPT
+
+
+# add iptable
 echo "Adding the iptables rules"
-sudo iptables -vv -t filter -A FORWARD -4 -p tcp -s ${SRC_IP_GW} -d ${DST_NET} -j ACCEPT -i ${HOST_IF} -o ${KIND_IF}
+sudo iptables -v -t filter -I DOCKER-USER 2 -4 -p tcp -s ${SRC_IP_GW} -d ${DST_NET} -j ACCEPT -i ${HOST_IF} -o ${KIND_IF}
 
 echo "Listing the iptables rules"
-sudo iptables -L
+sudo iptables -S
 
 echo "Script 35-lima-to-kind-routing.sh completed."

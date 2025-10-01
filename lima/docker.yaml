@@ -51,7 +51,7 @@ ssh:
 # containerd is managed by Docker, not by Lima, so the values are set to false here.
 containerd:
   system: false
-  user: false
+  user: true
 
 provision:
   - mode: system

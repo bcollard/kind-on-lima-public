@@ -18,6 +18,7 @@ Download and install the following tools:
 softwareupdate --install-rosetta
 xcode-select --install
 
+
 == Getting started
 
 === Clone this repo
