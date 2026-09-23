@@ -1,4 +1,15 @@
-= Run multiple KinD clusters on Lima
+= Deprecation & new Project
+
+‼️ See new project Klimax that supersedes this one:
+
+Website: https://klimax.dev
+
+GH repo: https://github.com/bcollard/klimax
+
+
+= OLD
+
+== Run multiple KinD clusters on Lima
 
 Demo: https://asciinema.org/a/gZysYfnX0XehRhTnKs8p0BTWS?speed=3&i=2
 
