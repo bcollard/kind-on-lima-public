@@ -1,10 +1,10 @@
 = Deprecation & new Project
 
-‼️ See new project Klimax that supersedes this one:
+‼️ See new project Marina that supersedes this one:
 
-Website: https://klimax.dev
+Website: https://marina.run
 
-GH repo: https://github.com/bcollard/klimax
+GH repo: https://github.com/bcollard/marina
 
 
 = OLD
